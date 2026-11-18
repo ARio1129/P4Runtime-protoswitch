@@ -119,7 +119,6 @@ Mininetでは、ホストとスイッチの接続構成を「トポロジー」�
 ターミナルAで、次のようにMininetを起動します。**コマンドと起動時の出力を1つのターミナル表示にまとめた例**です。
 
 ```console
-$ cd /tmp/P4runtime-protoswitch
 $ docker run --privileged --rm -it \
   -p 50001:50001 \
   -v "$(pwd)":/tutorial4 \
@@ -405,9 +404,16 @@ mininet>
 
 (1)と同じ方法で、今度はh1からh3へ3回pingを送信してください。**送信先のホストだけをh3に変更**します。
 
-h3宛ての`10.0.0.10`はまだ転送テーブルに登録されていないため、実行結果では**`3 packets transmitted, 0 received, 100% packet loss`**となることを確認します。
+```console
+mininet> h1 ping -c 3 h3
+PING 10.0.0.10 (10.0.0.10) 56(84) bytes of data.
 
-これは応答が届かなかったことを示します。なぜ失敗したのか、STEP 04で紹介したP4プログラムと照らし合わせて確認します。
+--- 10.0.0.10 ping statistics ---
+3 packets transmitted, 0 received, 100% packet loss
+mininet>
+```
+
+`3 packets transmitted, 0 received, 100% packet loss`は、3回送信しても応答が1回も届かなかったことを示します。なぜ失敗したのか、STEP 04で紹介したP4プログラムと照らし合わせて確認します。
 
 **なぜh3へのpingは失敗したのか？**
 

@@ -63,21 +63,15 @@ STEP 01からSTEP 09まで順番に進めます。操作する場所（ターミ
 | proto03_ip_p4info.txtpb | テーブル・アクションをP4Runtimeに知らせる  |
 | proto03_ip.p4           | 仕組みを読むためのソースコード（編集不要） |
 
-配布ZIPを解凍して、tutorial4_ip_exactフォルダーを「ダウンロード」に配置した例です。
+Tutorial 4で使用するファイルは、すべて配布ZIPに含まれています。ZIPを解凍し、`tutorial4_ip_exact`フォルダーを「ダウンロード」に配置してください。
 
-Macのターミナルで、作業用のフォルダを作成してファイルをコピーします。
-
-```console
-$ mkdir -p /tmp/tutorial4_ip_exact
-```
-
-`mkdir -p`で、実習に使用するフォルダを作成します。
+作業には、Tutorial 0で作成した`/tmp/P4runtime-protoswitch`フォルダをそのまま使用します。Macのターミナルで、配布ファイルをまとめてコピーします。
 
 ```console
-$ cp ~/Downloads/tutorial4_ip_exact/* /tmp/tutorial4_ip_exact/
+$ cp ~/Downloads/tutorial4_ip_exact/* /tmp/P4runtime-protoswitch/
 ```
 
-`cp`で、ダウンロードした配布ファイルを作業用フォルダにコピーします。正常に完了した場合、通常は何も表示されません。
+`cp`で、`custom_topo.py`を含む配布ファイルをTutorial 0の作業用フォルダにまとめてコピーします。正常に完了した場合、通常は何も表示されません。
 
 ## STEP 02 Mininetを起動する
 
@@ -125,9 +119,10 @@ Mininetでは、ホストとスイッチの接続構成を「トポロジー」�
 ターミナルAで、次のようにMininetを起動します。**コマンドと起動時の出力を1つのターミナル表示にまとめた例**です。
 
 ```console
+$ cd /tmp/P4runtime-protoswitch
 $ docker run --privileged --rm -it \
   -p 50001:50001 \
-  -v /tmp/tutorial4_ip_exact:/tutorial4 \
+  -v "$(pwd)":/tutorial4 \
   -e LOGLEVEL=debug -e PKTDUMP=true -e IPV6=false \
   yutakayasuda/p4mn \
   --custom /tutorial4/custom_topo.py --topo mytopo --arp
@@ -149,13 +144,13 @@ s1 ... ⚡ simple_switch_grpc @ 50001
 mininet>
 ```
 
-`--custom`はcustom_topo.pyを読み込み、`--topo mytopo`は先ほど説明した接続構成を選びます。
+`-v "$(pwd)":/tutorial4`はMacの作業フォルダをDocker内の`/tutorial4`から参照できるようにします。`--custom`はコピーしたcustom_topo.pyを読み込み、`--topo mytopo`は先ほど説明した接続構成を選びます。
 
 Tutorial 0では`--mac`を使いますが、今回はcustom_topo.pyに各ホストのMACアドレスが指定されているので、`--mac`を付けません。
 
 `--arp`を指定することで、各ホストに通信相手のIPアドレスとMACアドレスの対応をあらかじめ登録します。これにより、ARPによるアドレスの問い合わせを省略し、今回のチュートリアルではARPの処理を含めず、宛先IPアドレスによるパケット転送の仕組みを分かりやすく学習できるようにしています。
 
-`mininet>`が表示されれば、Mininetのコマンドを入力できます。起動ログの警告や詳しい表示は、環境により異なります。
+`mininet>`が表示されれば、Mininetのコマンドを入力できます。
 
 ![Mininetの起動後に表示されるプロンプト](media/image2.png)
 
@@ -274,16 +269,16 @@ h1の`link/ether`に表示されるMACアドレスが`00:00:00:00:00:01`であ�
 
 ```console
 $ docker run --rm -ti \
-  -v /tmp/tutorial4_ip_exact:/tutorial4 \
+  -v /tmp/P4runtime-protoswitch:/tmp \
   p4lang/p4runtime-sh \
   --grpc-addr host.docker.internal:50001 \
   --device-id 1 --election-id 0,1 \
-  --config /tutorial4/proto03_ip_p4info.txtpb,/tutorial4/proto03_ip.json
+  --config /tmp/proto03_ip_p4info.txtpb,/tmp/proto03_ip.json
 *** Welcome to the IPython shell for P4Runtime ***
 P4Runtime sh >>>
 ```
 
-このコマンドでは`--grpc-addr`で接続先、`--config`で使用するP4InfoとJSONファイルを指定します。`P4Runtime sh >>>`が表示されれば、転送ルールを操作できます。
+このコマンドでは`--grpc-addr`で接続先、`--config`でSTEP 01でコピーしたP4InfoとJSONファイルを指定します。`P4Runtime sh >>>`が表示されれば、転送ルールを操作できます。
 
 ## STEP 05 転送テーブルの定義を確認する
 
@@ -416,13 +411,19 @@ h3宛ての`10.0.0.10`はまだ転送テーブルに登録されていないた�
 
 **なぜh3へのpingは失敗したのか？**
 
+STEP 06では、h1（10.0.0.1）とh2（10.0.0.5）宛ての転送ルールのみを登録しました。
+
+h1からh3（10.0.0.10）へpingを送信すると、P4スイッチは宛先IPv4アドレスを転送テーブルで検索します。しかし、**h3のIPアドレスに対応する転送ルールが登録されていないため、一致するルールが見つかりません。**
+
+その結果、P4プログラムの87行目に定義された`default_action = drop()`が実行され、パケットはh3に届く前に破棄されます。**h3はpingの要求を受信できないため、応答を返すことができず、通信が失敗します。**
+
+この処理は、P4プログラムの次の箇所に対応しています。
+
 1. **91行目**：IPv4ヘッダが有効か確認します。
 2. **92行目**：宛先IPv4アドレスを転送テーブルで検索します。
-3. **87行目**：h3宛ての転送ルールが登録されていないため、`default_action = drop()`によってパケットが破棄されます。
+3. **87行目**：一致する転送ルールがないため、`default_action = drop()`によってパケットを破棄します。
 
-なお、94行目の`drop()`はIPv4ヘッダが有効でない場合に実行されるため、今回の破棄とは異なります。
-
-通信結果はコードと設定から想定した例で、実測ログではありません。応答時間などは環境によって変わります。
+なお、上記の通信結果はP4プログラムと転送テーブルの設定に基づく想定出力であり、実測ログではありません。
 
 ## STEP 08 h3宛ての転送ルールを追加する
 

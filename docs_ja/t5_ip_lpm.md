@@ -83,13 +83,11 @@ Mininet上に1台のP4スイッチ（`s1`）と12台のホスト（`h1`～`h12`�
 | h11 | `10.0.0.11` | 11 | 10 |
 | h12 | `10.0.0.12` | 12 | 12 |
 
-「接続ポート」は各ホストが実際に接続されるポート、「LPMの出力ポート」は転送エントリによって選択されるポートを表す。本実験では後述する4件の`/30`エントリをすべて登録する。ただし、複数のホストの宛先IPv4アドレスが同じエントリに一致する場合、それらのパケットは同一の出力ポートから送信されるため、すべての宛先ホストに到達するとは限らない。
+「接続ポート」は各ホストが実際に接続されるポート、「LPMの出力ポート」は転送エントリによって選択されるポートを表す。
 
-ホスト側のIPアドレス設定と、P4スイッチが参照するLPMエントリは独立している。本実験の`/30`はP4の転送テーブルの一致条件であり、各ホストに`/30`のサブネットマスクを設定することを意味しない。
+## 使用するP4プログラムとファイル
 
-## P4プログラムの変更点
-
-本実験には`proto05/proto05.p4`を使用する。Tutorial 4の`proto04.p4`から変更するのは、`ipv4_table`のマッチタイプである。
+本実験では、LPMによる照合を行う`proto05/proto05.p4`と、そのコンパイル済みファイルを使用する。`ipv4_table`のマッチタイプは、あらかじめ`lpm`に設定されている。
 
 ```p4
 table ipv4_table {
@@ -105,30 +103,32 @@ table ipv4_table {
 }
 ```
 
-Tutorial 4の`exact`を`lpm`に変更している。`forward`、`drop`、IPv4ヘッダの解析、その他の処理は変更していない。LPMの適用にはP4プログラムの変更と再コンパイルが必要であり、既存の`proto04.json`と`p4info.txtpb`をそのまま使用することはできない。
+Tutorial 4で使用した`exact`とは異なり、本実験では`lpm`による一致判定を行う。P4プログラムの編集やコンパイルは行わず、次のファイルを使用する。
+
+| ファイル | 用途 |
+| --- | --- |
+| `proto05.p4` | P4プログラムのソースコード |
+| `proto05.json` | BMv2スイッチに読み込むコンパイル済みファイル |
+| `p4info.txtpb` | P4Runtime Shellがテーブルやアクションの定義を参照するためのファイル |
+| `proto05.p4i` | プリプロセッサによる展開結果。実験時の読み込みには使用しない |
 
 ## 実験手順
 
-### STEP 01 P4プログラムをコンパイルする
+### STEP 01 配布ファイルを配置・確認する
 
-リポジトリの`proto05`ディレクトリを、Tutorial 0で作成した`/tmp/P4Runtime-protoswitch`に配置する。リポジトリのルートで次を実行する。
+リポジトリの`proto05`ディレクトリに、上記のファイルが格納されていることを確認する。リポジトリのルートで次を実行し、Tutorial 0で作成した`/tmp/P4Runtime-protoswitch`に配置する。
 
 ```bash
 $ cp -r proto05 /tmp/P4Runtime-protoswitch/
 ```
 
-続いてMacのターミナルで次を実行し、BMv2向けのJSONとP4Infoを生成する。
+続いて、配置されたファイルを確認する。
 
 ```bash
-$ docker run --rm \
-  -v /tmp/P4Runtime-protoswitch:/tmp \
-  -w /tmp/proto05 \
-  p4lang/p4c \
-  p4c --target bmv2 --arch v1model \
-  --p4runtime-files p4info.txtpb proto05.p4
+$ ls -l /tmp/P4Runtime-protoswitch/proto05/
 ```
 
-コンパイル後、`proto05`内に`proto05.json`と`p4info.txtpb`が生成される。Dockerイメージのアーキテクチャに関する注意点は、Tutorial 0および[コンパイル方法](tm_misc.md)を参照する。
+特に`proto05.json`と`p4info.txtpb`は、後述するP4Runtime Shellの起動時に指定するため、両方が存在することを確認する。以降の手順では、これらのファイルをそのまま読み込む。
 
 ### STEP 02 MininetとP4Runtime Shellを起動する
 

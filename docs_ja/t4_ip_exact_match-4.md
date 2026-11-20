@@ -50,11 +50,11 @@ P4Runtimeでは、コントローラーとスイッチの間をgRPCで接続し�
 
 ## 実験の手順
 
-STEP 01からSTEP 09まで順番に進めます。操作する場所（ターミナルA・B）と入力内容を区別してあります。
+STEP 01からSTEP 09まで順番に進めます。操作する環境（Mininet・P4Runtime Shell）と入力内容を区別してあります。
 
 以下の実行例にある `$`、`mininet>`、`P4Runtime sh >>>` は入力待ちの表示です。実際には、その後に続くコマンドを入力してください。
 
-## STEP 01 配布ファイルを準備する
+## STEP 01 使用するファイルを確認する
 
 | **ファイル**            | **役割**                                   |
 |-------------------------|--------------------------------------------|
@@ -62,16 +62,18 @@ STEP 01からSTEP 09まで順番に進めます。操作する場所（ターミ
 | proto04.json         | コンパイル済みのP4スイッチプログラム       |
 | p4info.txtpb | テーブル・アクションをP4Runtimeに知らせる  |
 | proto04.p4           | 仕組みを読むためのソースコード（編集不要） |
+| proto04.p4i          | 前処理後のP4ソースコード（参考用）         |
 
-Tutorial 4で使用するファイルは、すべて配布ディレクトリにあります。
+Tutorial 4では、`P4Runtime-protoswitch`リポジトリの`proto04`ディレクトリにあるファイルを使用します。
 
-作業には、Tutorial 0で作成した`/tmp/P4runtime-protoswitch`フォルダをそのまま使用します。Macのターミナルで、配布ファイルをまとめてコピーします。
+作業には、Tutorial 0で作成した`/tmp/P4Runtime-protoswitch`ディレクトリをそのまま使用します。Macのターミナルで、`proto04`ディレクトリ内のファイルを確認します。
 
 ```console
-$ cp ~/Downloads/tutorial4_ip_exact/* /tmp/P4runtime-protoswitch/
+$ ls /tmp/P4Runtime-protoswitch/proto04
+custom_topo.py  p4info.txtpb  proto04.json  proto04.p4  proto04.p4i
 ```
 
-`cp`で、`custom_topo.py`を含む配布ファイルをTutorial 0の作業用フォルダにまとめてコピーします。正常に完了した場合、通常は何も表示されません。
+`proto04`ディレクトリが存在しない場合は、リポジトリのルートディレクトリで`cp -r proto04 /tmp/P4Runtime-protoswitch/`を実行してください。
 
 ## STEP 02 Mininetを起動する
 
@@ -104,18 +106,18 @@ Mininetの起動時にcustom_topo.pyを読み込み、ホストとスイッチ�
 | --- | --- |
 | 3〜4行目 | class MyTopo(Topo) / def build(self)<br>Mininetで作成する仮想ネットワークの構成をMyTopoクラスにまとめ、その中で機器や接続を定義します。 |
 | 5行目 | addSwitch("s1")<br>「s1」という名前のP4スイッチを1台作成します。 |
-| 7〜9行目 | addHost("h1" / "h2" / "h3", ip=..., mac=...)<br>3台のホストを作り、それぞれにホスト名IPアドレスとMACアドレスを設定します。例：h2はIP 10.0.0.5、MAC 00:00:00:00:00:05です。 |
+| 7〜9行目 | addHost("h1" / "h2" / "h3", ip=..., mac=...)<br>3台のホストを作り、それぞれにホスト名、IPアドレスとMACアドレスを設定します。例：h2はIP 10.0.0.5、MAC 00:00:00:00:00:05です。 |
 | 10〜12行目 | addLink(h1, s1, port2=1)<br>各ホストをs1に接続します。port2は「スイッチs1側」のポート番号を指定します。h1→ポート1、h2→ポート2、h3→ポート3です。 |
 | 14〜16行目 | topos = {"mytopo": MyTopo}<br>上で定義したネットワーク構成トポロジーに「mytopo」という呼び出し名を付けます。Mininet起動時の --topo mytopo がこの名前を指定しています。 |
 
 ここで作られるのは「ホスト・スイッチ・接続」の構成です。
 
-ターミナルAで、次のようにしてMininetを起動します。**以下はコマンドと起動時の出力を1つのターミナル表示にまとめた例**です。
+Macのターミナルで、次のコマンドを実行してMininetを起動します。**以下はコマンドと起動時の出力を1つのターミナル表示にまとめた例**です。
 
 ```console
 $ docker run --privileged --rm -it \
   -p 50001:50001 \
-  -v "$(pwd)":/tutorial4 \
+  -v /tmp/P4Runtime-protoswitch/proto04:/tutorial4 \
   -e LOGLEVEL=debug -e PKTDUMP=true -e IPV6=false \
   yutakayasuda/p4mn \
   --custom /tutorial4/custom_topo.py --topo mytopo --arp
@@ -137,7 +139,7 @@ s1 ... ⚡ simple_switch_grpc @ 50001
 mininet>
 ```
 
-`-v "$(pwd)":/tutorial4`はMacの作業フォルダをDocker内の`/tutorial4`から参照できるようにします。`--custom`はコピーしたcustom_topo.pyを読み込み、`--topo mytopo`は先ほど説明した接続構成を選びます。
+`-v /tmp/P4Runtime-protoswitch/proto04:/tutorial4`は、Macの`proto04`ディレクトリをDocker内の`/tutorial4`から参照できるようにします。`--custom`は`proto04`内のcustom_topo.pyを読み込み、`--topo mytopo`は先ほど説明した接続構成を選びます。
 
 ファイル末尾の topos = {"mytopo": MyTopo} は、この構成を「mytopo」という名前で登録する指定です。起動コマンドの --custom でファイルを読み込み、--topo mytopo でその構成を選択します。
 
@@ -165,7 +167,7 @@ IPアドレスとMACアドレスはcustom_topo.pyの7〜9行目、接続ポー�
 
 ### Mininetのコマンドで設定を表示する
 
-ターミナルAの `mininet>` で接続構成とホストの設定を確認します。
+Mininetの `mininet>` で接続構成とホストの設定を確認します。
 
 **(1) ホストとスイッチの接続を確認する**
 
@@ -212,7 +214,7 @@ h1の`link/ether`に表示されるMACアドレスが`00:00:00:00:00:01`であ�
 
 ## STEP 04 P4Runtime Shellでスイッチに接続する
 
-ターミナルBでP4Runtime Shellを起動し、スイッチに接続して、このtutorialで使用するP4プログラムを設定します。
+P4Runtime Shellを起動し、スイッチに接続して、このtutorialで使用するP4プログラムを設定します。
 
 ### P4プログラムは何をしているか
 
@@ -254,20 +256,20 @@ h1の`link/ether`に表示されるMACアドレスが`00:00:00:00:00:01`であ�
 | 90〜92行目 / isValid()・apply()  | IPv4ヘッダが有効なら、転送テーブルを検索し、該当する処理を実行する。                        |
 | 93〜94行目 / else・drop()        | IPv4ヘッダが有効でない場合、パケットを破棄する。                                            |
 
-ターミナルBを開き、次のコマンドでスイッチに接続します。
+Macの別のターミナルを開き、次のコマンドでP4Runtime Shellを起動してスイッチに接続します。
 
 ```console
 $ docker run --rm -ti \
-  -v /tmp/P4runtime-protoswitch:/tmp \
+  -v /tmp/P4Runtime-protoswitch:/tmp \
   p4lang/p4runtime-sh \
   --grpc-addr host.docker.internal:50001 \
   --device-id 1 --election-id 0,1 \
-  --config /tmp/proto03_ip_p4info.txtpb,/tmp/proto03_ip.json
+  --config /tmp/proto04/p4info.txtpb,/tmp/proto04/proto04.json
 *** Welcome to the IPython shell for P4Runtime ***
 P4Runtime sh >>>
 ```
 
-このコマンドでは`--grpc-addr`で接続先、`--config`でSTEP 01でコピーしたP4InfoとJSONファイルを指定します。`P4Runtime sh >>>`が表示されれば、接続に成功しています。
+このコマンドでは`--grpc-addr`で接続先、`--config`でSTEP 01で確認した`proto04`内のP4InfoとJSONファイルを指定します。`P4Runtime sh >>>`が表示されれば、接続に成功しています。
 
 ## STEP 05 転送テーブルの定義を確認する
 
@@ -312,7 +314,7 @@ size: 1024
 P4Runtime sh >>>
 ```
 
-`tables["MyIngress.ipv4_table"]`とテーブル名を指定することで、テーブルの検索キー・一致方法・利用できるアクションを表示できます。特にマッチキー名が`hdr.ipv4.dstAddr`であることと、`EXACT`であることがマッチタイプかを確認してください。
+`tables["MyIngress.ipv4_table"]`とテーブル名を指定することで、テーブルの検索キー・一致方法・利用できるアクションを表示できます。特にマッチキー名が`hdr.ipv4.dstAddr`であることと、マッチタイプが`EXACT`であることを確認してください。
 
 ### 出力結果の読み方
 
@@ -327,7 +329,7 @@ P4Runtime sh >>>
 | initial_default_action | 初期設定の既定アクションはdrop         |
 | size: 1024             | 登録可能なエントリの数               |
 
-表示例の「Out[5]」の数字は実行した順番で変わります。その他の定義は、配布ファイル proto03_ip_p4info.txtpb と対応しています。
+表示例の「Out[5]」の数字は実行した順番で変わります。その他の定義は、配布ファイル p4info.txtpb と対応しています。
 
 ## STEP 06 h1とh2の転送ルールを登録する
 
@@ -421,13 +423,13 @@ h1からh3（10.0.0.10）へpingを送信すると、P4スイッチは宛先IPv4
 
 Mininet上では、ホストh3がP4スイッチs1のポート3に接続されています。しかし、P4スイッチs1の転送テーブルには、h3（10.0.0.10）宛ての転送ルールが登録されていません。そこで、宛先IPv4アドレスが10.0.0.10のパケットをポート3へ転送するルールを追加します。
 
-ターミナルBのP4Runtime Shellで、**STEP 06のh1宛てルールと同じ手順**を実行してください。新しいエントリを作成し、宛先IPアドレスを`10.0.0.10`、出力ポートを`3`に指定して登録します。
+P4Runtime Shellで、**STEP 06のh1宛てルールと同じ手順**を実行してください。新しいエントリを作成し、宛先IPアドレスを`10.0.0.10`、出力ポートを`3`に指定して登録します。
 
 登録後は、STEP 06で使ったエントリの読み出し操作をもう一度実行します。h1・h2に加えて、**10.0.0.10宛てをポート3へ転送するルールが表示され、合計3件になっている**ことを確認してください。
 
 ## STEP 09 再びpingして返信を確認する
 
-**STEP 08で使用したターミナルB（P4Runtime Shell）から、ターミナルA（Mininet）へ戻ります。** `mininet>`が表示されていることを確認してから、STEP 07と同じ方法でpingを実行します。
+**P4Runtime Shellで転送ルールを登録した後、Mininetの画面に切り替えます。** `mininet>`が表示されていることを確認します。STEP 07と同じ方法でpingを実行します。
 
 **(1) h1からh3へpingを再送信する**
 

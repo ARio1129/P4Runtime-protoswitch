@@ -183,7 +183,7 @@ P4Runtime sh >>>
 
 ### STEP 03 プレフィックス長を指定して転送ルールを登録する
 
-次の表に、本実験で登録するプレフィックス長30ビットの転送エントリと、各エントリの出力ポートを示す。「Mininet上の該当IPv4アドレス」は、各プレフィックスに一致するアドレスのうち、実際にホストへ割り当てられたもののみを記載している。
+次の表に、本実験で登録するプレフィックス長30ビットの転送エントリと、各エントリの出力ポートを示す。この表には、各プレフィックスに一致するIPv4アドレスのうち、Mininetのホストに設定されているアドレスだけを記載している。
 
 | ネットワークプレフィックス | Mininet上の該当IPv4アドレス | 出力ポート | 本実験での登録 |
 | --- | --- | --- | --- |
@@ -192,7 +192,7 @@ P4Runtime sh >>>
 | `10.0.0.8/30` | `10.0.0.8`～`10.0.0.11` | 10 | 登録する |
 | `10.0.0.12/30` | `10.0.0.12` | 12 | 登録する |
 
-`10.0.0.0/30`自体の一致範囲には`10.0.0.0`も含まれるが、Mininet上にそのアドレスを持つホストは存在しない。ほかのプレフィックスも、エントリの一致範囲と実際に構築したホストのアドレス範囲は区別する。
+`10.0.0.0`は、`10.0.0.0/30`のネットワークアドレスであるため、ホストには割り当てていない。そのため、Mininet上に`10.0.0.0`を持つホストは存在しない。
 
 P4Runtime Shellから表の4件すべてを登録する。`10.0.0.0/30`はポート1、`10.0.0.4/30`はポート6、`10.0.0.8/30`はポート10、`10.0.0.12/30`はポート12へ転送する。
 
@@ -220,8 +220,79 @@ P4Runtime sh >>> te.insert()
 
 登録したエントリを読み出す。
 
-```python
+**コマンドと出力例｜登録した転送ルール**
+
+```console
 P4Runtime sh >>> table_entry["MyIngress.ipv4_table"].read(lambda e: print(e))
+table_id: 50177836 ("MyIngress.ipv4_table")
+match {
+  field_id: 1 ("hdr.ipv4.dstAddr")
+  lpm {
+    value: "\\x0a\\x00\\x00\\x00"
+    prefix_len: 30
+  }
+}
+action {
+  action {
+    action_id: 29683729 ("MyIngress.forward")
+    params {
+      param_id: 1 ("port")
+      value: "\\x01"
+    }
+  }
+}
+table_id: 50177836 ("MyIngress.ipv4_table")
+match {
+  field_id: 1 ("hdr.ipv4.dstAddr")
+  lpm {
+    value: "\\x0a\\x00\\x00\\x04"
+    prefix_len: 30
+  }
+}
+action {
+  action {
+    action_id: 29683729 ("MyIngress.forward")
+    params {
+      param_id: 1 ("port")
+      value: "\\x06"
+    }
+  }
+}
+table_id: 50177836 ("MyIngress.ipv4_table")
+match {
+  field_id: 1 ("hdr.ipv4.dstAddr")
+  lpm {
+    value: "\\x0a\\x00\\x00\\x08"
+    prefix_len: 30
+  }
+}
+action {
+  action {
+    action_id: 29683729 ("MyIngress.forward")
+    params {
+      param_id: 1 ("port")
+      value: "\\x0a"
+    }
+  }
+}
+table_id: 50177836 ("MyIngress.ipv4_table")
+match {
+  field_id: 1 ("hdr.ipv4.dstAddr")
+  lpm {
+    value: "\\x0a\\x00\\x00\\x0c"
+    prefix_len: 30
+  }
+}
+action {
+  action {
+    action_id: 29683729 ("MyIngress.forward")
+    params {
+      param_id: 1 ("port")
+      value: "\\x0c"
+    }
+  }
+}
+P4Runtime sh >>>
 ```
 
 `10.0.0.0/30`、`10.0.0.4/30`、`10.0.0.8/30`、`10.0.0.12/30`の4件が読み出され、各LPMフィールドの`prefix_len`が`30`、アクションのポート番号がそれぞれ`1`、`6`、`10`、`12`であることを確認する。

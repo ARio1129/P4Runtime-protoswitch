@@ -194,33 +194,22 @@ P4Runtime sh >>>
 
 `10.0.0.0`は、`10.0.0.0/30`のネットワークアドレスであるため、ホストには割り当てていない。そのため、Mininet上に`10.0.0.0`を持つホストは存在しない。
 
-P4Runtime Shellから表の4件すべてを登録する。`10.0.0.0/30`はポート1、`10.0.0.4/30`はポート6、`10.0.0.8/30`はポート10、`10.0.0.12/30`はポート12へ転送する。
+最初に、`10.0.0.0/30`に一致するパケットをポート1へ転送するルールを登録する。
 
-```python
+**コマンド｜転送ルールの登録**
+
+```console
 P4Runtime sh >>> te = table_entry["MyIngress.ipv4_table"](action="MyIngress.forward")
 P4Runtime sh >>> te.match["hdr.ipv4.dstAddr"] = "10.0.0.0/30"
 P4Runtime sh >>> te.action.set(port="1")
 P4Runtime sh >>> te.insert()
-
-P4Runtime sh >>> te = table_entry["MyIngress.ipv4_table"](action="MyIngress.forward")
-P4Runtime sh >>> te.match["hdr.ipv4.dstAddr"] = "10.0.0.4/30"
-P4Runtime sh >>> te.action.set(port="6")
-P4Runtime sh >>> te.insert()
-
-P4Runtime sh >>> te = table_entry["MyIngress.ipv4_table"](action="MyIngress.forward")
-P4Runtime sh >>> te.match["hdr.ipv4.dstAddr"] = "10.0.0.8/30"
-P4Runtime sh >>> te.action.set(port="10")
-P4Runtime sh >>> te.insert()
-
-P4Runtime sh >>> te = table_entry["MyIngress.ipv4_table"](action="MyIngress.forward")
-P4Runtime sh >>> te.match["hdr.ipv4.dstAddr"] = "10.0.0.12/30"
-P4Runtime sh >>> te.action.set(port="12")
-P4Runtime sh >>> te.insert()
 ```
 
-登録したエントリを読み出す。
+Tutorial 4では、宛先IPv4アドレスを完全一致で指定した。今回は`10.0.0.0/30`と指定し、宛先IPv4アドレスの先頭30ビットを照合する。
 
-**コマンドと出力例｜登録した転送ルール**
+次のコマンドで、登録した転送ルールを確認する。
+
+**コマンドと出力例｜登録した転送ルールの確認**
 
 ```console
 P4Runtime sh >>> table_entry["MyIngress.ipv4_table"].read(lambda e: print(e))
@@ -241,89 +230,59 @@ action {
     }
   }
 }
-table_id: 50177836 ("MyIngress.ipv4_table")
-match {
-  field_id: 1 ("hdr.ipv4.dstAddr")
-  lpm {
-    value: "\\x0a\\x00\\x00\\x04"
-    prefix_len: 30
-  }
-}
-action {
-  action {
-    action_id: 29683729 ("MyIngress.forward")
-    params {
-      param_id: 1 ("port")
-      value: "\\x06"
-    }
-  }
-}
-table_id: 50177836 ("MyIngress.ipv4_table")
-match {
-  field_id: 1 ("hdr.ipv4.dstAddr")
-  lpm {
-    value: "\\x0a\\x00\\x00\\x08"
-    prefix_len: 30
-  }
-}
-action {
-  action {
-    action_id: 29683729 ("MyIngress.forward")
-    params {
-      param_id: 1 ("port")
-      value: "\\x0a"
-    }
-  }
-}
-table_id: 50177836 ("MyIngress.ipv4_table")
-match {
-  field_id: 1 ("hdr.ipv4.dstAddr")
-  lpm {
-    value: "\\x0a\\x00\\x00\\x0c"
-    prefix_len: 30
-  }
-}
-action {
-  action {
-    action_id: 29683729 ("MyIngress.forward")
-    params {
-      param_id: 1 ("port")
-      value: "\\x0c"
-    }
-  }
-}
 P4Runtime sh >>>
 ```
 
-`10.0.0.0/30`、`10.0.0.4/30`、`10.0.0.8/30`、`10.0.0.12/30`の4件が読み出され、各LPMフィールドの`prefix_len`が`30`、アクションのポート番号がそれぞれ`1`、`6`、`10`、`12`であることを確認する。
+`value: "\\x0a\\x00\\x00\\x00"`は、IPv4アドレス`10.0.0.0`を表す。
 
-### STEP 04 /30による転送を検証する
+`prefix_len: 30`から、プレフィックス長が30ビットであることを確認する。
+
+`value: "\\x01"`から、出力ポートが1に設定されていることを確認する。
+
+続いて、同じ手順で残りの3件の転送ルールを登録する。登録時には、`te.match["hdr.ipv4.dstAddr"]`のプレフィックスと、`te.action.set(port=...)`の出力ポートを次の値に変更する。
+
+| プレフィックス | 出力ポート |
+| --- | --- |
+| `10.0.0.4/30` | 6 |
+| `10.0.0.8/30` | 10 |
+| `10.0.0.12/30` | 12 |
+
+最後に、4件の転送ルールが登録され、それぞれのプレフィックス長と出力ポートが設定どおりであることを確認する。
+
+### STEP 04 LPMによる転送結果を確認する
 
 Mininetから、h1を送信元としてh6へpingを送信する。
 
-```bash
+**コマンドと出力例｜h1からh6への通信**
+
+```console
 mininet> h1 ping -c 3 h6
+PING h6 (10.0.0.6) 56(84) bytes of data.
+64 bytes from h6 (10.0.0.6): icmp_seq=1 ttl=64 time=0.096 ms
+64 bytes from h6 (10.0.0.6): icmp_seq=2 ttl=64 time=0.100 ms
+64 bytes from h6 (10.0.0.6): icmp_seq=3 ttl=64 time=0.104 ms
+
+--- h6 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss
 ```
 
-要求パケットの宛先`10.0.0.6`は`10.0.0.4/30`に一致し、ポート6へ転送される。応答パケットの宛先`10.0.0.1`は`10.0.0.0/30`に一致し、ポート1へ転送される。両方向の転送が成立するため、正常な状態ではpingの応答を受信できる。
+要求パケットの宛先`10.0.0.6`は`10.0.0.4/30`に一致し、ポート6へ転送される。応答パケットの宛先`10.0.0.1`は`10.0.0.0/30`に一致し、ポート1へ転送される。`0% packet loss`から、h1とh6の間で通信が成功したことを確認する。
 
 次に、送信先をh5へ変更する。
 
-```bash
+**コマンドと出力例｜h1からh5への通信**
+
+```console
 mininet> h1 ping -c 3 h5
+PING h5 (10.0.0.5) 56(84) bytes of data.
+
+--- h5 ping statistics ---
+3 packets transmitted, 0 received, 100% packet loss
 ```
 
 宛先`10.0.0.5`も`10.0.0.4/30`に一致するため、パケットはポート6へ転送される。しかしh5が接続されているのはポート5である。そのため、この時点でh5からの応答は得られない。
 
 この失敗は**テーブルに一致するエントリが存在しないためではない**。LPMによる一致判定は成立しているが、アクションに指定した出力ポートが宛先ホストの接続ポートと異なるために生じる。
-
-必要に応じて、Mininet上で以下を実行すると、ポート6から送信されたパケットを記録したPCAPを確認できる。
-
-```bash
-mininet> sh tcpdump -nn -r /tmp/s1-eth6_out.pcap
-```
-
-表示されるICMPパケットの宛先が`10.0.0.5`であれば、h5宛てパケットがポート6から出力されたことを確認できる。
 
 ### STEP 05 /32のエントリを追加する
 

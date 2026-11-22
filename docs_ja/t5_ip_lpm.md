@@ -87,7 +87,7 @@ Mininet上に1台のP4スイッチ（`s1`）と12台のホスト（`h1`～`h12`�
 
 ## 使用するP4プログラムとファイル
 
-本実験では、LPMによる照合を行う`proto05/proto05.p4`と、そのコンパイル済みファイルを使用する。`ipv4_table`のマッチタイプは、あらかじめ`lpm`に設定されている。
+本実験では、LPMによる照合を行う`proto05.p4`と、そのコンパイル済みファイルを使用する。`ipv4_table`のマッチタイプは、あらかじめ`lpm`に設定されている。
 
 ```p4
 table ipv4_table {
@@ -122,13 +122,14 @@ Tutorial 4で使用した`exact`とは異なり、本実験では`lpm`による�
 $ cp -r proto05 /tmp/P4Runtime-protoswitch/
 ```
 
-続いて、配置されたファイルを確認する。
+続いて、配置されたファイルを確認する。以下にコマンドと出力例を示す。
 
-```bash
-$ ls -l /tmp/P4Runtime-protoswitch/proto05/
+```console
+$ ls /tmp/P4Runtime-protoswitch/proto05/
+p4info.txtpb  proto05.json  proto05.p4  proto05.p4i
 ```
 
-特に`proto05.json`と`p4info.txtpb`は、後述するP4Runtime Shellの起動時に指定するため、両方が存在することを確認する。以降の手順では、これらのファイルをそのまま読み込む。
+`proto05`ディレクトリに、上記の4つのファイルがすべて存在することを確認する。このうち、`proto05.json`と`p4info.txtpb`は、後述するP4Runtime Shellの起動時に使用する。
 
 ### STEP 02 MininetとP4Runtime Shellを起動する
 
@@ -143,26 +144,44 @@ $ docker run --privileged --rm -it \
 
 `mininet>`で`net`を実行し、`h1`が`s1-eth1`、`h5`が`s1-eth5`、`h6`が`s1-eth6`に接続されていることを確認する。
 
-別のターミナルからP4Runtime Shellを起動する。
+別のターミナルで、リポジトリのルートディレクトリからP4Runtime Shellを起動する。
 
 ```bash
 $ docker run --rm -ti \
-  -v /tmp/P4Runtime-protoswitch:/tmp \
+  -v "$(pwd)/proto05":/proto05 \
   p4lang/p4runtime-sh \
   --grpc-addr host.docker.internal:50001 \
   --device-id 1 --election-id 0,1 \
-  --config /tmp/proto05/p4info.txtpb,/tmp/proto05/proto05.json
+  --config /proto05/p4info.txtpb,/proto05/proto05.json
 ```
 
-P4Runtime Shellでテーブル定義を表示する。
+P4Runtime Shellで転送テーブルの定義を確認します。
 
-```python
+**コマンドと出力例｜転送テーブルの定義**
+
+```console
 P4Runtime sh >>> tables["MyIngress.ipv4_table"]
+Out[1]:
+preamble {
+  ...
+  name: "MyIngress.ipv4_table"
+  alias: "ipv4_table"
+}
+match_fields {
+  ...
+  name: "hdr.ipv4.dstAddr"
+  bitwidth: 32
+  match_type: LPM
+}
+...
+P4Runtime sh >>>
 ```
 
-検索フィールドが`hdr.ipv4.dstAddr`、マッチタイプが`LPM`であることを確認する。
+検索キーが`hdr.ipv4.dstAddr`であることを確認します。
 
-### STEP 03 /30の転送エントリを登録する
+マッチタイプが`LPM`であることを確認します。
+
+### STEP 03 プレフィックス長を指定して転送ルールを登録する
 
 次の表に、本実験で登録するプレフィックス長30ビットの転送エントリと、各エントリの出力ポートを示す。「Mininet上の該当IPv4アドレス」は、各プレフィックスに一致するアドレスのうち、実際にホストへ割り当てられたもののみを記載している。
 

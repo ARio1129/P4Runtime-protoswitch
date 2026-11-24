@@ -13,6 +13,8 @@ IPv4アドレスのプレフィックス長に基づくテーブル検索を行�
 
 ![図1：Tutorial 5のシステム構成とLPM転送テーブル](media/t5_lpm_関係図.png)
 
+図1に本チュートリアルのシステム構成を示す。P4Runtime Shellは、gRPC通信を介してP4スイッチ（s1）の転送テーブルにエントリを登録する。スイッチは、登録された転送ルールに従い、受信したパケットを指定された出力ポートから転送する。
+
 ## LPMの概要
 
 LPM（Longest Prefix Match：最長プレフィックス一致）とは、宛先IPアドレスと転送テーブルに登録されたネットワークプレフィックスを比較し、一致するエントリのうちプレフィックス長が最も長いものを選択する方式である。
@@ -148,11 +150,11 @@ $ docker run --privileged --rm -it \
 
 `mininet>`で`net`を実行し、`h1`が`s1-eth1`、`h5`が`s1-eth5`、`h6`が`s1-eth6`に接続されていることを確認する。
 
-別のターミナルで、リポジトリのルートディレクトリからP4Runtime Shellを起動する。
+別のターミナルで、`proto05`ディレクトリに移動し、P4Runtime Shellを起動する。
 
 ```bash
-$ docker run --rm -ti \
-  -v "$(pwd)/proto05":/proto05 \
+$ docker run --rm -ti --platform linux/amd64 \
+  -v "$(pwd):/proto05:ro" \
   p4lang/p4runtime-sh \
   --grpc-addr host.docker.internal:50001 \
   --device-id 1 --election-id 0,1 \

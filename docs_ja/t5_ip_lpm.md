@@ -117,15 +117,31 @@ class LpmL2Topo(Topo):
         self.addLink(s1, s3, port1=2, port2=1)  # s1-eth2 -> h4-h7
         self.addLink(s1, s4, port1=3, port2=1)  # s1-eth3 -> h8-h11
 
-        groups = (
-            (s2, (1, 2, 3)),
-            (s3, (4, 5, 6, 7)),
-            (s4, (8, 9, 10, 11)),
-        )
-        for switch, numbers in groups:
-            for host_port, n in enumerate(numbers, start=2):
-                host = self.addHost('h%d' % n, ip='10.0.0.%d/24' % n)
-                self.addLink(host, switch, port1=0, port2=host_port)
+        # Add each host explicitly, keeping one host per switch port.
+        h1 = self.addHost('h1', ip='10.0.0.1/24')
+        self.addLink(h1, s2, port1=0, port2=2)
+        h2 = self.addHost('h2', ip='10.0.0.2/24')
+        self.addLink(h2, s2, port1=0, port2=3)
+        h3 = self.addHost('h3', ip='10.0.0.3/24')
+        self.addLink(h3, s2, port1=0, port2=4)
+
+        h4 = self.addHost('h4', ip='10.0.0.4/24')
+        self.addLink(h4, s3, port1=0, port2=2)
+        h5 = self.addHost('h5', ip='10.0.0.5/24')
+        self.addLink(h5, s3, port1=0, port2=3)
+        h6 = self.addHost('h6', ip='10.0.0.6/24')
+        self.addLink(h6, s3, port1=0, port2=4)
+        h7 = self.addHost('h7', ip='10.0.0.7/24')
+        self.addLink(h7, s3, port1=0, port2=5)
+
+        h8 = self.addHost('h8', ip='10.0.0.8/24')
+        self.addLink(h8, s4, port1=0, port2=2)
+        h9 = self.addHost('h9', ip='10.0.0.9/24')
+        self.addLink(h9, s4, port1=0, port2=3)
+        h10 = self.addHost('h10', ip='10.0.0.10/24')
+        self.addLink(h10, s4, port1=0, port2=4)
+        h11 = self.addHost('h11', ip='10.0.0.11/24')
+        self.addLink(h11, s4, port1=0, port2=5)
 
         # The final host connects directly to s1's fourth port.
         h12 = self.addHost('h12', ip='10.0.0.12/24')
@@ -140,7 +156,7 @@ topos = {'lpm_l2': lambda: LpmL2Topo()}
 
 `LearningBridge`クラスは、`ip link`コマンドを用いてLinuxブリッジを作成し、そのブリッジに各Ethernetインターフェースを参加させる。ブリッジは受信フレームの送信元MACアドレスを学習し、宛先MACアドレスに基づいて転送先を決定する。この処理にOpen vSwitchは使用しない。
 
-`addLink()`では、P4スイッチs1のポート番号を明示している。これは、P4Runtime Shellから登録する`forward`アクションのポート番号と実際の接続先を対応付けるためである。また、`addHost()`の`ip='10.0.0.%d/24'`によって各ホストのIPアドレスとサブネットマスクを設定し、h12はs1のport4に直接接続する。
+`addLink()`では、P4スイッチs1のポート番号を明示している。これは、P4Runtime Shellから登録する`forward`アクションのポート番号と実際の接続先を対応付けるためである。また、`addHost()`では各ホストのIPアドレスとサブネットマスクを1台ずつ指定し、`addLink()`で各ホストの接続先とポート番号を設定する。h12はs1のport4に直接接続する。
 
 末尾の`topos`は、Mininet起動時の`--topo lpm_l2`という指定と`LpmL2Topo`クラスを対応付けるための定義である。
 

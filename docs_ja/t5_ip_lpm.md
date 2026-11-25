@@ -333,64 +333,10 @@ action {
   }
 }
 
-table_id: 50177836 ("MyIngress.ipv4_table")
-match {
-  field_id: 1 ("hdr.ipv4.dstAddr")
-  lpm {
-    value: "\\x0a\\x00\\x00\\x04"
-    prefix_len: 30
-  }
-}
-action {
-  action {
-    action_id: 29683729 ("MyIngress.forward")
-    params {
-      param_id: 1 ("port")
-      value: "\\x02"
-    }
-  }
-}
-
-table_id: 50177836 ("MyIngress.ipv4_table")
-match {
-  field_id: 1 ("hdr.ipv4.dstAddr")
-  lpm {
-    value: "\\x0a\\x00\\x00\\x08"
-    prefix_len: 30
-  }
-}
-action {
-  action {
-    action_id: 29683729 ("MyIngress.forward")
-    params {
-      param_id: 1 ("port")
-      value: "\\x03"
-    }
-  }
-}
-
-table_id: 50177836 ("MyIngress.ipv4_table")
-match {
-  field_id: 1 ("hdr.ipv4.dstAddr")
-  lpm {
-    value: "\\x0a\\x00\\x00\\x0c"
-    prefix_len: 30
-  }
-}
-action {
-  action {
-    action_id: 29683729 ("MyIngress.forward")
-    params {
-      param_id: 1 ("port")
-      value: "\\x04"
-    }
-  }
-}
-
-P4Runtime sh >>>
+（以下、残り3件の出力は省略）
 ```
 
-4件のエントリの`prefix_len`がいずれも`30`であり、出力ポートの値が順に`\x01`（1）、`\x02`（2）、`\x03`（3）、`\x04`（4）となっていることを確認する。既存のエントリが残っている場合、同一エントリの再登録はエラーになるため、新しいMininet環境で実験する。
+出力例では、`10.0.0.0/30`のエントリが登録され、出力ポートが1に設定されていることを確認できる。同様に、残りの3件についてもプレフィックス長が30ビットであり、出力ポートがそれぞれ2、3、4に設定されていることを確認する。既存のエントリが残っている場合、同一エントリの再登録はエラーになるため、新しいMininet環境で実験する。
 
 ### STEP 04 L2スイッチを経由した転送を確認する
 

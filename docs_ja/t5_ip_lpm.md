@@ -13,47 +13,7 @@ IPv4アドレスのプレフィックス長に基づくテーブル検索を行�
 
 次の関係図に本実験のネットワーク構成を示す。P4Runtime Shellは、gRPC通信を介してP4スイッチs1の転送テーブルにエントリを登録する。
 
-```mermaid
-flowchart TB
-    subgraph mn["Mininet"]
-        s1["P4スイッチ s1（BMv2 / LPM）"]
-        s2["L2スイッチ s2（Linuxブリッジ）"]
-        s3["L2スイッチ s3（Linuxブリッジ）"]
-        s4["L2スイッチ s4（Linuxブリッジ）"]
-        h1["h1 · 10.0.0.1"]
-        h2["h2 · 10.0.0.2"]
-        h3["h3 · 10.0.0.3"]
-        h4["h4 · 10.0.0.4"]
-        h5["h5 · 10.0.0.5"]
-        h6["h6 · 10.0.0.6"]
-        h7["h7 · 10.0.0.7"]
-        h8["h8 · 10.0.0.8"]
-        h9["h9 · 10.0.0.9"]
-        h10["h10 · 10.0.0.10"]
-        h11["h11 · 10.0.0.11"]
-        h12["h12 · 10.0.0.12"]
-        s1 ---|"s1-eth1（port1）"| s2
-        s1 ---|"s1-eth2（port2）"| s3
-        s1 ---|"s1-eth3（port3）"| s4
-        s1 ---|"s1-eth4（port4）"| h12
-        s2 --- h1
-        s2 --- h2
-        s2 --- h3
-        s3 --- h4
-        s3 --- h5
-        s3 --- h6
-        s3 --- h7
-        s4 --- h8
-        s4 --- h9
-        s4 --- h10
-        s4 --- h11
-    end
-    ctl["Controller：P4Runtime Shell"] -. "P4Runtime / gRPC（制御通信）" .-> s1
-    classDef p4 fill:#d9ecff,stroke:#316c9a,color:#143751,stroke-width:2px;
-    classDef l2 fill:#def4e9,stroke:#397f61,color:#1d5039;
-    class s1 p4;
-    class s2,s3,s4 l2;
-```
+![図1：Tutorial 5のシステム構成](media/tutorial_5_システム構成図.png)
 
 図1：P4スイッチs1、3台のL2スイッチ、および12台のホストの接続関係。実線はデータ転送用リンク、点線はP4Runtimeによる制御通信を表す。
 

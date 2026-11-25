@@ -292,29 +292,24 @@ s1のport1～port4には、それぞれ異なる接続先があるため、次�
 
 `10.0.0.0`のアドレスを持つホストはMininet上に存在しない。ただし、その値も`10.0.0.0/30`の一致範囲には含まれる。
 
-**コマンド｜4件の転送エントリ登録（P4Runtime Shell）**
+最初に、`10.0.0.0/30`に一致するパケットをP4スイッチs1のポート1へ転送するエントリを登録する。
+
+**コマンド｜転送エントリの登録（P4Runtime Shell）**
 
 ```python
 te = table_entry["MyIngress.ipv4_table"](action="MyIngress.forward")
 te.match["hdr.ipv4.dstAddr"] = "10.0.0.0/30"
 te.action.set(port="1")
 te.insert()
-
-te = table_entry["MyIngress.ipv4_table"](action="MyIngress.forward")
-te.match["hdr.ipv4.dstAddr"] = "10.0.0.4/30"
-te.action.set(port="2")
-te.insert()
-
-te = table_entry["MyIngress.ipv4_table"](action="MyIngress.forward")
-te.match["hdr.ipv4.dstAddr"] = "10.0.0.8/30"
-te.action.set(port="3")
-te.insert()
-
-te = table_entry["MyIngress.ipv4_table"](action="MyIngress.forward")
-te.match["hdr.ipv4.dstAddr"] = "10.0.0.12/30"
-te.action.set(port="4")
-te.insert()
 ```
+
+続いて、同様の手順で残りの3件のエントリを登録する。登録するネットワークプレフィックスと出力ポートを以下に示す。
+
+| ネットワークプレフィックス | 出力ポート |
+| --- | --- |
+| `10.0.0.4/30` | 2 |
+| `10.0.0.8/30` | 3 |
+| `10.0.0.12/30` | 4 |
 
 登録後にテーブルを読み出す。
 

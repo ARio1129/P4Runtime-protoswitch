@@ -136,7 +136,7 @@ class LpmL2Topo(Topo):
 topos = {'lpm_l2': lambda: LpmL2Topo()}
 ```
 
-`LpmL2Topo`クラスはMininetの`Topo`を継承し、スイッチ・ホスト・リンクの構成を定義する。`s1`には実験環境の既定のP4スイッチ（BMv2）を使用し、`s2`～`s4`には`LearningBridge`クラスを指定する。
+`LpmL2Topo`は、Mininetが提供するネットワーク構成用の`Topo`クラスを継承して定義したクラスである。`Topo`が持つ`addSwitch()`、`addHost()`、`addLink()`を使用して、スイッチとホストの配置、および各機器間の接続関係を定義する。`s1`には実験環境の既定のP4スイッチ（BMv2）を使用し、`s2`～`s4`には`LearningBridge`クラスを指定する。
 
 `LearningBridge`クラスは、`ip link`コマンドを用いてLinuxブリッジを作成し、そのブリッジに各Ethernetインターフェースを参加させる。ブリッジは受信フレームの送信元MACアドレスを学習し、宛先MACアドレスに基づいて転送先を決定する。この処理にOpen vSwitchは使用しない。
 
@@ -200,10 +200,9 @@ table ipv4_table {
 
 ### STEP 01 実験ファイルを確認する
 
-Macのターミナルで`proto05`ディレクトリに移動し、必要なファイルを確認する。以下のコマンドではファイルの存在を確認するだけで、P4プログラムを編集・コンパイルしない。
+`proto05`ディレクトリに必要なファイルが格納されていることを確認する。以下のコマンドではファイルの存在を確認するだけで、P4プログラムを編集・コンパイルしない。
 
 ```console
-$ cd ~/卒業研究/P4Runtime-protoswitch_LPM/proto05
 $ ls -1 custom_topo.py proto05.p4 proto05.json proto05.p4i p4info.txtpb
 custom_topo.py
 p4info.txtpb
@@ -214,7 +213,7 @@ proto05.p4i
 
 ### STEP 02 MininetとP4Runtime Shellを起動する
 
-既存のMininetがTCPポート50001を使用している場合は終了してから、`proto05`ディレクトリにいるMacのターミナルで以下を実行する。
+`proto05`ディレクトリを作業ディレクトリとして、Macのターミナルで以下を実行する。
 
 **コマンド｜Mininetの起動（ターミナル1）**
 
@@ -231,31 +230,25 @@ docker run --name p4mn-lpm-l2 --privileged --rm -it \
 
 `--custom`で`custom_topo.py`を読み込み、`--topo lpm_l2`で新しいネットワーク構成を指定する。`--arp`はホストのARPエントリを事前登録するために使用する。これは本実験のP4プログラムがIPv4以外のフレームを破棄する構成であるため、ARP通信に依存せずIPv4の転送を観測するための設定である。
 
-`mininet>`が表示されたら、接続関係を確認する。
-
-**コマンド｜ネットワーク構成の確認**
+**コマンドと出力例｜ネットワーク構成の確認**
 
 ```console
 mininet> net
+...
+h5 h5-eth0:s3-eth3
+h10 h10-eth0:s4-eth4
+...
+s1 lo: s1-eth1:s2-eth1 s1-eth2:s3-eth1 s1-eth3:s4-eth1 s1-eth4:h12-eth0
+...
 ```
 
-出力中に、少なくとも次の接続を確認する。
+出力中に、s1とs2～s4・h12の接続、およびh5とh10の接続先が上記のとおりであることを確認する。
 
-```text
-s1-eth1:s2-eth1
-s1-eth2:s3-eth1
-s1-eth3:s4-eth1
-s1-eth4:h12-eth0
-h5-eth0:s3-eth3
-h10-eth0:s4-eth4
-```
-
-次に、別のMacのターミナルで`proto05`ディレクトリへ移動し、P4Runtime Shellを起動する。
+次に、別のMacのターミナルで、`proto05`ディレクトリを作業ディレクトリとしてP4Runtime Shellを起動する。
 
 **コマンド｜P4Runtime Shellの起動（ターミナル2）**
 
 ```bash
-cd ~/卒業研究/P4Runtime-protoswitch_LPM/proto05
 docker run --rm -ti --platform linux/amd64 \
   -v "$(pwd):/proto05:ro" \
   p4lang/p4runtime-sh \

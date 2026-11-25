@@ -55,24 +55,94 @@ IPv4アドレスは32ビットで構成される。LPMでは、プレフィッ�
 
 `10.0.0.5`をプレフィックス長30ビットで照合する場合も、`10.0.0.4/30`の範囲に含まれる。転送テーブルには、末尾2ビットを0にした`10.0.0.4/30`を登録する。
 
-### 最長プレフィックス一致によるエントリの選択
-
-次に、以下の2件を同じ転送テーブルへ登録した場合を考える。ここでは、最長一致によるエントリ選択を明確にするため、`/32`の出力ポートを意図的に別のポートに設定する。
-
-| 登録エントリ | アクション |
-| --- | --- |
-| `10.0.0.4/30` | `forward(2)` |
-| `10.0.0.5/32` | `forward(3)`（検証用） |
-
-宛先IPアドレスが`10.0.0.5`の場合、両方のエントリが一致する。しかし、`/32`の方が`/30`よりプレフィックス長が長いため、LPMでは`10.0.0.5/32`が選択され、ポート3へ転送される。
-
-一方、宛先IPアドレスが`10.0.0.6`の場合、`10.0.0.5/32`には一致しないため、`10.0.0.4/30`が選択され、ポート2へ転送される。このようにLPMでは、広いアドレス範囲をまとめて扱いながら、特定のアドレスに対して異なる転送ルールを適用できる。なお、`10.0.0.5/32 → port3`は優先関係を検証するための設定であり、h5へ正しく到達させるための通常の設定ではない。
-
 ## 実験環境
 
-Mininet上に1台のP4スイッチ（`s1`）、3台のL2スイッチ（`s2`～`s4`）、12台のホスト（`h1`～`h12`）を配置する。ホストには`10.0.0.1`～`10.0.0.12`を割り当てる。`custom_topo.py`では各ホストのIPアドレスを`/24`として設定しており、`/30`はホストのサブネットマスクではなく、**P4スイッチの転送テーブルで使用する照合条件**である。
+Mininet上に1台のP4スイッチ（`s1`）、3台のL2スイッチ（`s2`～`s4`）、12台のホスト（`h1`～`h12`）を配置する。各ホストには、`10.0.0.1`から`10.0.0.12`までのIPv4アドレスを割り当てる。
 
-s2～s4は、Linuxカーネルのブリッジ機能で動作するMACアドレス学習型のL2スイッチである。s1はLPMによって接続先のL2スイッチを選択し、その先でL2スイッチが宛先MACアドレスに基づいて各ホストへフレームを転送する。h12のみs1に直接接続する。
+各ホストのサブネットマスクは`255.255.255.0`（プレフィックス長24ビット）に設定する。したがって、12台のホストはIPアドレスの設定上、同一の`10.0.0.0/24`ネットワークに属する。一方、P4スイッチs1のLPM転送テーブルには、プレフィックス長30ビットのエントリを登録し、宛先IPv4アドレスに基づいて出力ポートを決定する。**ホスト側の`/24`はネットワークの設定であり、転送テーブル側の`/30`は一致判定に使用する条件である。**
+
+s2～s4は、Linuxカーネルのブリッジ機能で動作するMACアドレス学習型のL2スイッチである。s1はLPMで出力ポートを選択し、接続先のL2スイッチが宛先MACアドレスに基づいて各ホストへEthernetフレームを転送する。h12のみs1に直接接続する。
+
+### トポロジーファイル（`custom_topo.py`）
+
+本実験で使用する`custom_topo.py`を次に示す。このファイルは、スイッチとホストの配置、接続ポート、およびL2ブリッジの動作を定義する。
+
+```python
+"""Tutorial 5: one P4 (BMv2) switch, three Linux L2 bridges, 12 hosts.
+
+The P4 switch s1 selects an egress port using IPv4 LPM.
+The Linux bridges s2-s4 deliver Ethernet frames using MAC learning.
+
+Run with the yutakayasuda/p4mn Mininet image using --custom and --topo.
+No P4 source code changes or extra Open vSwitch processes are required.
+"""
+
+from mininet.node import Switch
+from mininet.topo import Topo
+
+
+class LearningBridge(Switch):
+    """Kernel L2 learning bridge using `ip link` (not Open vSwitch)."""
+
+    def start(self, controllers):
+        # The P4 switch is started separately by the p4mn default switch class.
+        # Linux automatically learns source MAC addresses on a bridge.
+        self.cmd('ip link add name %s type bridge' % self.name)
+        for intf in self.intfList():
+            if intf.name.startswith(self.name + '-eth'):
+                self.cmd('ip link set dev %s master %s' % (intf.name, self.name))
+                self.cmd('ip link set dev %s up' % intf.name)
+        self.cmd('ip link set dev %s up' % self.name)
+
+    def stop(self, deleteIntfs=True):
+        self.cmd('ip link del dev %s' % self.name)
+        super().stop(deleteIntfs=deleteIntfs)
+
+
+class LpmL2Topo(Topo):
+    """s1: P4/BMv2; s2-s4: learning bridges; h1-h12: hosts."""
+
+    def build(self):
+        # The p4mn image provides BMv2 as its default switch class.
+        s1 = self.addSwitch('s1')
+
+        # Override the default for the three *non-P4* L2 switches.
+        s2 = self.addSwitch('s2', cls=LearningBridge)
+        s3 = self.addSwitch('s3', cls=LearningBridge)
+        s4 = self.addSwitch('s4', cls=LearningBridge)
+
+        # Pin s1's port numbers explicitly (P4Runtime actions use these).
+        # The upstream interface on each L2 bridge is its port1.
+        self.addLink(s1, s2, port1=1, port2=1)  # s1-eth1 -> h1-h3
+        self.addLink(s1, s3, port1=2, port2=1)  # s1-eth2 -> h4-h7
+        self.addLink(s1, s4, port1=3, port2=1)  # s1-eth3 -> h8-h11
+
+        groups = (
+            (s2, (1, 2, 3)),
+            (s3, (4, 5, 6, 7)),
+            (s4, (8, 9, 10, 11)),
+        )
+        for switch, numbers in groups:
+            for host_port, n in enumerate(numbers, start=2):
+                host = self.addHost('h%d' % n, ip='10.0.0.%d/24' % n)
+                self.addLink(host, switch, port1=0, port2=host_port)
+
+        # The final host connects directly to s1's fourth port.
+        h12 = self.addHost('h12', ip='10.0.0.12/24')
+        self.addLink(h12, s1, port1=0, port2=4)
+
+
+# Mininet `--custom custom_topo.py --topo lpm_l2` registration.
+topos = {'lpm_l2': lambda: LpmL2Topo()}
+```
+
+`LpmL2Topo`クラスはMininetの`Topo`を継承し、スイッチ・ホスト・リンクの構成を定義する。`s1`には実験環境の既定のP4スイッチ（BMv2）を使用し、`s2`～`s4`には`LearningBridge`クラスを指定する。
+
+`LearningBridge`クラスは、`ip link`コマンドを用いてLinuxブリッジを作成し、そのブリッジに各Ethernetインターフェースを参加させる。ブリッジは受信フレームの送信元MACアドレスを学習し、宛先MACアドレスに基づいて転送先を決定する。この処理にOpen vSwitchは使用しない。
+
+`addLink()`では、P4スイッチs1のポート番号を明示している。これは、P4Runtime Shellから登録する`forward`アクションのポート番号と実際の接続先を対応付けるためである。また、`addHost()`の`ip='10.0.0.%d/24'`によって各ホストのIPアドレスとサブネットマスクを設定し、h12はs1のport4に直接接続する。
+
+末尾の`topos`は、Mininet起動時の`--topo lpm_l2`という指定と`LpmL2Topo`クラスを対応付けるための定義である。
 
 ### P4スイッチとL2スイッチの接続
 

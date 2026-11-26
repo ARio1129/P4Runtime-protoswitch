@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tutorial 5 | LPM × L2 ライブ通信可視化</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1320;--panel:#121e31;--panel2:#18283c;--line:#2d4059;--text:#e9f1fb;--muted:#9eb0c6;--hint:#778da8;--blue:#5cb8ff;--cyan:#39d6cb;--amber:#ffbc6c;--red:#fb7788;--green:#69d8a3}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",Meiryo,sans-serif;background:var(--bg);color:var(--text)}
+body:before{content:"";position:fixed;left:-12vw;top:-20vh;width:55vw;height:50vh;pointer-events:none;background:radial-gradient(ellipse,rgba(22,83,119,.21),transparent 72%)}
+.wrap{max-width:1530px;margin:auto;padding:26px 26px 54px;position:relative}
+header{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:21px}
+.eyebrow{font-size:11px;font-weight:800;color:var(--cyan);letter-spacing:2px}
+h1{font-size:clamp(23px,3vw,34px);margin:9px 0 6px;letter-spacing:-.5px}header p{font-size:13px;line-height:1.8;color:var(--muted);margin:0}.status{display:flex;align-items:center;gap:11px;border:1px solid var(--line);border-radius:12px;padding:12px 15px;background:#142338;min-width:224px}.led{width:10px;height:10px;border-radius:50%;background:#e2a658;box-shadow:0 0 0 4px #e2a65820}.led.ok{background:var(--green);box-shadow:0 0 0 4px #69d8a321}.led.off{background:var(--red)}.status strong{display:block;font-size:13px}.status small{display:block;color:var(--muted);font-size:11px;margin-top:3px}
+.grid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(300px,.83fr);gap:16px;align-items:start}.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 13px 38px #0000001a}.panehead{padding:17px 20px 12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}.panehead h2{font-size:15px;margin:0}.subtitle{color:var(--hint);font-size:11px}.pill{display:inline-flex;align-items:center;gap:7px;padding:5px 10px;background:#19334b;border:1px solid #305977;color:#bfdcef;border-radius:7px;font-size:11px}.pill:before{content:"";background:var(--cyan);border-radius:50%;width:6px;height:6px}.pad{padding:0 18px 18px}
+.toptags{display:flex;gap:7px;flex-wrap:wrap;margin:0 19px 8px}
+.diagram{display:block;width:100%;height:auto;overflow:visible;user-select:none}.edge{stroke:#3b5169;stroke-width:4;stroke-linecap:round}.edge-port{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;fill:#799ab6;font-size:11px}.sw-box{fill:#194561;stroke:#67c6ed;stroke-width:2}.bridge-box{fill:#164a49;stroke:#53cbb7;stroke-width:2}.host-box{fill:#1c3046;stroke:#486784;stroke-width:1.6}.host-box.active{stroke:#7dd7f6;stroke-width:3}.node-name{font-size:16px;font-weight:800;fill:#f1f8ff}.node-sub{font-size:11px;fill:#aac8db}.node-host{font-size:14px;fill:#eef7ff;font-weight:800}.node-ip{font-size:10px;fill:#a1b8cc}.sig{filter:drop-shadow(0 0 8px currentColor)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;padding:2px 20px 15px;color:var(--muted);font-size:11px}.key{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:5px;background:var(--cyan)}.key.reply{background:var(--amber)}.key.blue{background:var(--blue)}
+.counter{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line)}.counter>div{padding:13px 17px}.counter>div+div{border-left:1px solid var(--line)}.counter small{display:block;color:var(--muted);font-size:11px}.counter b{font-size:23px;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+.rules{width:100%;border-collapse:collapse;font-size:12px}.rules th{text-align:left;color:var(--hint);font-size:11px;font-weight:700;padding:9px 8px;border-bottom:1px solid var(--line)}.rules td{padding:10px 8px;border-bottom:1px solid #263a50}.rules tr.current{background:#1b4045}.rules tr.current td{color:var(--cyan);font-weight:750}.rules code{font-size:12px}.sec{color:#8ba9c4;font-weight:800;font-size:11px;letter-spacing:.6px;margin:18px 0 9px}
+.info{background:#0e2031;border:1px solid #2b445e;padding:12px 13px;border-radius:11px;font-size:12px;color:#c5d5e5;line-height:1.75}.info b{color:var(--text)}.note{font-size:11px;line-height:1.8;color:var(--muted)}.note strong{color:#d3e4f0}.fdb{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.fdb-card{border:1px solid #284b51;border-radius:10px;background:#102a30;padding:10px 8px;min-height:89px}.fdb-card strong{display:block;font-size:12px;color:#86e4ce;margin-bottom:4px}.fdb-card .fdb-row{font-family:ui-monospace,Menlo,monospace;font-size:10px;overflow-wrap:anywhere;line-height:1.7;color:#d4eaf0}.fdb-card small{color:#8ba8b4;font-size:10px}
+.below{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,.82fr);gap:16px;margin-top:16px}.tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}select,button{background:#1c3147;color:var(--text);border:1px solid #385772;padding:8px 10px;border-radius:9px;font-size:12px;font-family:inherit}button{cursor:pointer}button:hover{background:#2a455e}button:focus-visible,select:focus-visible{outline:2px solid var(--cyan)}.entries{height:347px;overflow:auto}.entry{display:grid;grid-template-columns:68px 85px 1fr;align-items:center;gap:9px;padding:10px 17px;border-top:1px solid #26394f;font-size:12px}.entry time{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--hint)}.direction{font-size:10px;color:#a5dff0;background:#1c3e55;border-radius:6px;padding:4px 5px;text-align:center}.direction.out{color:#aff2e1;background:#14473d}.detail{color:#a2b6ca;font-size:11px;margin-top:2px}.empty{font-size:12px;color:var(--hint);padding:23px 18px}.scenario{padding:1px 20px 18px}.scenario ol{padding-left:21px;margin:0}.scenario li{margin:12px 0 18px;font-size:13px;color:var(--muted);line-height:1.7}.scenario li strong{color:var(--text)}code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-word}.scenario code{display:block;color:#89e8d7;font-size:12px;margin-top:3px}.warning{border:1px solid #94683e;background:#3b2a1d;color:#ffddb0;padding:11px 15px;border-radius:11px;margin:0 0 16px;display:none;font-size:12px;line-height:1.7}.warning.show{display:block}.foot{font-size:11px;color:#819bb5;line-height:1.85;margin-top:16px}
+@media(max-width:1150px){.grid,.below{grid-template-columns:1fr}}@media(max-width:650px){.wrap{padding:17px 10px 40px}.panehead{padding:13px 13px 10px}.pad{padding:0 12px 15px}.toptags{margin:0 12px 7px}.legend{padding:0 12px 12px}.counter>div{padding:9px}.counter small{font-size:10px}.counter b{font-size:19px}.entry{grid-template-columns:60px 72px 1fr;gap:6px;padding:9px 10px}.fdb{grid-template-columns:1fr}.fdb-card{min-height:0}}
+
+/* ICMP識別番号・シーケンス番号ごとの観測結果は再生キューと独立して更新する */
+.exchange-panel{margin:0 19px 14px;background:#0d1d30;border:1px solid #2b5069;border-radius:12px;padding:12px 15px}
+.exchange-head{display:flex;align-items:center;justify-content:space-between;gap:9px;flex-wrap:wrap;font-size:12px;margin-bottom:8px}
+.exchange-head small{color:var(--muted);font-size:10px}
+.exchange-list{max-height:210px;overflow-y:auto}
+.exchange-line{padding:9px 0;border-top:1px solid #263d54}
+.exchange-top{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap;font-size:12px}
+.exchange-line small{display:block;margin-top:6px;color:#a7c3d3;font-size:11px;line-height:1.45}
+.exchange-badges{display:flex;gap:6px;flex-wrap:wrap}
+.exchange-tag{font-size:10px;padding:3px 6px;border-radius:6px}
+.exchange-tag.observed{background:#184c42;color:#88e7ce}
+.exchange-tag.missing{background:#4b3430;color:#ffc5a0}
+.no-exchange{font-size:11px;color:var(--muted)}
+/* 教材向けの低速・再生制御。実際の回線速度とは独立する */
+.playback{margin:10px 19px 14px;padding:14px 15px;border:1px solid #31536d;border-radius:12px;background:linear-gradient(110deg,#112d42,#13283a);display:flex;flex-wrap:wrap;gap:12px 18px;align-items:center;justify-content:space-between}
+.playactions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.playactions button{font-size:13px;padding:9px 13px;border-color:#45769b}.playactions button.primary{background:#196a78;color:white;border-color:#2b98a0;font-weight:750}.playactions button:disabled{opacity:.45;cursor:not-allowed}
+.speedgroup{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:#c2d6e7}.speedgroup label{font-weight:700}.speedgroup input{accent-color:#49d6c9;width:120px;cursor:pointer}.speedgroup output{min-width:42px;color:#7cf1d8;font-weight:800;font-variant-numeric:tabular-nums}
+.playmeta{flex-basis:100%;display:flex;gap:12px;align-items:center;justify-content:space-between;border-top:1px solid #294b5f;padding-top:9px;font-size:12px;color:#b1d1e7}.progress{height:5px;background:#2c4a5c;border-radius:99px;overflow:hidden;flex:1;max-width:250px}.progress>div{height:100%;width:0;background:#48d8ca;transition:width .12s linear}
+.readout{margin:0 19px 12px;padding:12px 15px;border-radius:10px;background:#0d2834;border:1px solid #235164;display:flex;gap:10px;align-items:center;flex-wrap:wrap;min-height:53px;font-size:12px}.readout strong{color:#80e9dc}.readout span{color:#d3e8f2;line-height:1.5}
+.packet-icon{filter:drop-shadow(0 2px 5px #0009)}.packet-icon .b{stroke:#e9fffe;stroke-width:1.4}.packet-icon .packet-label{font-size:10px;font-family:ui-monospace,Menlo,monospace;font-weight:800;fill:#06282c;letter-spacing:.5px}.packet-tip{fill:#ebfcfc}
+.playnote{color:#9ebfd1;font-size:11px;margin:0 19px 10px;line-height:1.6}
+@media(max-width:650px){.playback{margin:9px 12px 12px;padding:12px}.readout{margin:0 12px 10px}.playactions button{padding:8px 9px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+ <div><div class="eyebrow">P4RUNTIME · MININET · TUTORIAL 05</div><h1>LPM × L2 通信経路ビジュアライザ</h1><p>Mininetでの <b>ping</b> に合わせて、P4スイッチ・L2ブリッジ・ホスト間を流れるICMPパケットを表示します。</p></div>
+ <div class="status"><div class="led" id="led"></div><div><strong id="status">監視への接続待ち</strong><small id="capture">15リンクの状態を確認中</small></div></div>
+</header>
+<div class="warning" id="warning"></div>
+<div class="grid">
+<section class="panel">
+ <div class="panehead"><h2>ネットワーク全体と実際のパケット</h2><span class="subtitle">s1：P4 / s2〜s4：Linux L2 ブリッジ</span></div>
+ <div class="toptags"><span class="pill">スイッチ4台・ホスト12台</span><span class="pill">LPM /30 × 4件</span><span id="modeTag" class="pill">ライブ監視</span></div>
+ <div class="playback" aria-label="パケット再生コントロール">
+  <div class="playactions"><button class="primary" id="playPause" type="button">⏸ 一時停止</button><button id="step" type="button" title="リンク1本分を再生し、再び停止">⏭ 1リンク進める</button><button id="replay" type="button" title="これまでに観測したパケットを先頭から再生">↺ 最初から再生</button><button id="latest" type="button" title="古い再生待ちを飛ばして直近のpingを確認">⤓ 最新のpingを見る</button><button id="clear" type="button" title="観測履歴と再生中のパケットを消去して次のpingを待つ（Mininetの設定は変更しません）">↺ 通信をクリア</button></div>
+  <div class="speedgroup"><label for="speed">再生速度</label><input id="speed" type="range" min="0" max="6" step="1" value="2" aria-label="再生速度"><output id="speedVal" for="speed">0.5×</output></div>
+  <div class="speedgroup"><label for="pathMode">表示する経路</label><select id="pathMode" aria-label="主経路か全観測を選択"><option value="all">全観測（分岐・返送も）</option><option value="main">宛先へ向かう経路のみ</option></select></div>
+  <div class="playmeta"><span id="playState">パケットの到着待ち</span><div class="progress" aria-label="再生進捗"><div id="progressBar"></div></div><span id="playCount">0 / 0リンク</span></div>
+ </div>
+ <div class="readout"><strong>今のパケット</strong><span id="readout">Mininetでpingを実行してください。観測したリンクごとに、パケットがゆっくり移動します。</span></div>
+ <svg id="diagram" class="diagram" viewBox="0 0 1150 580" role="img" aria-label="s1を中心にs2、s3、s4が接続され、各L2スイッチにホストが接続されたTutorial 5のトポロジー"></svg>
+ <div class="legend"><span><i class="key"></i>ICMP Echo Request</span><span><i class="key reply"></i>ICMP Echo Reply</span><span><i class="key blue"></i>観測したリンクを点灯</span><span>◇ 破線：本来の宛先以外にも転送されたパケットの経路</span></div>
+ <div class="exchange-panel"><div class="exchange-head"><b>各pingの観測結果</b><small>実際のパケット観測に基づく判定（再生速度とは独立）</small></div><div id="exchangeList" class="exchange-list"><span class="no-exchange">pingの観測待ち</span></div></div>
+ <div class="counter"><div><small>再生したリンク観測</small><b id="packets">0</b></div><div><small>リクエスト</small><b id="requests">0</b></div><div><small>応答</small><b id="replies">0</b></div></div>
+</section>
+<section class="panel">
+ <div class="panehead"><h2>LPMテーブルとMACアドレス学習</h2><span class="subtitle">教材の設定と実測FDB</span></div>
+ <div class="pad">
+  <div class="sec">s1のLPMテーブル（チュートリアルの設定例）</div>
+  <table class="rules"><thead><tr><th>宛先IPv4プレフィックス</th><th>出力ポート</th><th>接続先</th></tr></thead><tbody id="rules"></tbody></table>
+  <p class="note">この表は<b>教材に記載された4件を表示する参考表</b>です。実際のP4テーブル内容を自動取得したものではありません。</p>
+  <div class="sec">P4スイッチで観測した直近の転送</div>
+  <div class="info" id="selected">Mininetで <b>h1 ping -c 3 h5</b> を実行すると、port2 → s3への転送を確認できます。</div>
+  <div class="sec">L2スイッチのMAC学習状況（Linux bridge FDB）</div>
+  <div class="fdb" id="fdb"><div class="fdb-card"><small>実測値の取得待ち…</small></div></div>
+  <p class="note">FDBが取得できた場合だけ実際の学習済みMACアドレスを表示します。Linuxの<code>bridge</code>コマンドがない環境では、取得できない旨を表示します。</p>
+ </div>
+</section>
+</div>
+<div class="below">
+<section class="panel">
+ <div class="panehead"><h2>パケットの観測ログ</h2><div class="tools"><select id="filter" aria-label="対象通信を選択"><option value="all">すべての通信</option><option value="h1-h5">h1 ↔ h5</option><option value="h1-h2">h1 ↔ h2</option></select><button id="diagnostics" type="button">診断ログを保存</button></div></div>
+ <div class="entries" id="log"><div class="empty">実験のpingを待機しています。受信すると、通過した各リンクの方向とICMPシーケンス番号が表示されます。</div></div>
+</section>
+<section class="panel">
+ <div class="panehead"><h2>チュートリアルでの確認手順</h2><span class="subtitle">STEP 04 / STEP 05</span></div>
+ <div class="scenario"><ol>
+  <li><strong>STEP 03：4件のLPMエントリを登録</strong><code>10.0.0.0/30 → port1（s2）</code><code>10.0.0.4/30 → port2（s3）</code><code>10.0.0.8/30 → port3（s4）</code><code>10.0.0.12/30 → port4（h12）</code></li>
+  <li><strong>STEP 04：異なるL2スイッチ間の通信</strong><code>mininet&gt; h1 ping -c 3 h5</code>通常は <b>h1 → s2 → s1 → s3 → h5</b> を経由する。</li>
+  <li><strong>STEP 05：同じL2スイッチ内の通信</strong><code>mininet&gt; h1 ping -c 3 h2</code>宛先MACが学習済みなら <b>h1 → s2 → h2</b>。未学習時はs2から複数リンクに転送される可能性があり、観測ログで確認できる。</li>
+ </ol><p class="note">パケット型アイコンの移動は<strong>観測したICMPのリンク通過情報</strong>に基づく低速再生です。描画の時間は実際のネットワーク遅延を表しません。画面からLPMテーブルの登録・変更は行いません。</p></div>
+</section>
+</div>
+<div class="foot">ライブ監視ではDockerコンテナ内の各スイッチインターフェースを読み取り、Mac側の127.0.0.1で表示します。これはネットワークトポロジーを変更しません。ICMP Echo Request / Replyを対象にしており、ARPやICMP以外のフレームは描画しません。</div>
+</div>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const NS='http://www.w3.org/2000/svg';
+const nodes={s1:{x:565,y:115,kind:'p4'},s2:{x:215,y:302,kind:'l2'},s3:{x:575,y:302,kind:'l2'},s4:{x:930,y:302,kind:'l2'},h12:{x:812,y:115,kind:'host'}};
+[{start:108,step:102,ids:[1,2,3]},{start:453,step:82,ids:[4,5,6,7]},{start:807,step:82,ids:[8,9,10,11]}].forEach(g=>g.ids.forEach((n,i)=>nodes['h'+n]={x:g.start+g.step*i,y:502,kind:'host'}));
+const links=[
+ ['s1','s2','s1-eth1','port1'],['s1','s3','s1-eth2','port2'],['s1','s4','s1-eth3','port3'],['s1','h12','s1-eth4','port4'],
+ ['s2','h1','s2-eth2','port2'],['s2','h2','s2-eth3','port3'],['s2','h3','s2-eth4','port4'],
+ ['s3','h4','s3-eth2','port2'],['s3','h5','s3-eth3','port3'],['s3','h6','s3-eth4','port4'],['s3','h7','s3-eth5','port5'],
+ ['s4','h8','s4-eth2','port2'],['s4','h9','s4-eth3','port3'],['s4','h10','s4-eth4','port4'],['s4','h11','s4-eth5','port5']
+];
+const ruleData=[['10.0.0.0/30','port1','s2',0,3],['10.0.0.4/30','port2','s3',4,7],['10.0.0.8/30','port3','s4',8,11],['10.0.0.12/30','port4','h12',12,15]];
+const svg=$('diagram');
+function element(tag,attrs,par){const n=document.createElementNS(NS,tag);Object.entries(attrs||{}).forEach(([k,v])=>n.setAttribute(k,String(v)));(par||svg).appendChild(n);return n}
+function text(x,y,str,clazz,par){let n=element('text',{x,y,class:clazz,'text-anchor':'middle'},par);n.textContent=str;return n}
+const edgeGroup=element('g',{id:'edges'}),labelGroup=element('g',{}),nodeGroup=element('g',{}),particleGroup=element('g',{});
+const edgeNodes={};
+links.forEach(([a,b,iface,port],i)=>{
+ const u=nodes[a],v=nodes[b];
+ const line=element('line',{x1:u.x,y1:u.y,x2:v.x,y2:v.y,class:'edge'},edgeGroup);
+ element('title',{},line).textContent=iface+' / '+a+' ↔ '+b;
+ edgeNodes[iface]=line;
+ if(i<4){const f= i===3?0.46:0.22;const xx=u.x+(v.x-u.x)*f,yy=u.y+(v.y-u.y)*f-10;text(xx,yy,port,'edge-port',labelGroup)}
+});
+Object.entries(nodes).forEach(([name,n])=>{
+ const group=element('g',{},nodeGroup);
+ if(n.kind==='host'){
+  const r=element('rect',{x:n.x-35,y:n.y-24,width:70,height:48,rx:9,class:'host-box',id:'box-'+name},group);
+  text(n.x,n.y-3,name,'node-host',group);
+  text(n.x,n.y+13,'10.0.0.'+name.slice(1),'node-ip',group);
+  element('title',{},r).textContent=name+' / 10.0.0.'+name.slice(1);
+ }else{
+  element('rect',{x:n.x-53,y:n.y-28,width:106,height:56,rx:11,class:n.kind==='p4'?'sw-box':'bridge-box'},group);
+  text(n.x,n.y-2,name,'node-name',group);
+  text(n.x,n.y+16,n.kind==='p4'?'P4 / BMv2':'Linux Bridge','node-sub',group);
+ }
+});
+const ruleBody=$('rules');
+ruleData.forEach((r,i)=>{const tr=document.createElement('tr');tr.id='rule'+i;r.slice(0,3).forEach(v=>{const td=document.createElement('td');const code=document.createElement('code');code.textContent=v;td.append(code);tr.append(td)});ruleBody.append(tr)});
+const counters={packet:0,request:0,reply:0};
+// 同じICMP通信をまとめ、観測リンクを送信元からの順に整理して再生する。実時間を表さない。
+const observed=[];
+const exchangeMap=new Map();
+// Host MACs are learned only on actually captured host-to-bridge packets.
+// Compare against the bridge FDB to identify incorrect learning via the uplink.
+const hostMacs=new Map();
+const hostPorts={h1:'s2-eth2',h2:'s2-eth3',h3:'s2-eth4',h4:'s3-eth2',h5:'s3-eth3',h6:'s3-eth4',h7:'s3-eth5',h8:'s4-eth2',h9:'s4-eth3',h10:'s4-eth4',h11:'s4-eth5'};
+let lastFdb=null;
+let latestBatchStart=0;
+const speedChoices=[0.1,0.25,0.5,1,1.5,2,4];
+let cursor=0,active=null,isPaused=false,stepOnce=false,rafId=0,logCount=0;
+let lastFrame=0,stepEndTime=0;
+let lastWorkerStatus='';
+let clearBeforeTs=0; // 画面を消去する前に観測されたパケットを再表示しない
+function currentSpeed(){return speedChoices[Number($('speed').value)]||0.5}
+function segmentDuration(){return 1250/currentSpeed()}
+function updatePlaybackUI(){
+ $('playPause').textContent=isPaused?'▶ 再生':'⏸ 一時停止';
+ $('speedVal').textContent=currentSpeed()+'×';
+ const total=observed.filter(selectedEvent).length;
+ const shown=observed.slice(0,Math.max(0,cursor-(active?1:0))).filter(selectedEvent).length;
+ $('playCount').textContent=shown+' / '+total+'リンク';
+ $('progressBar').style.width=(total?Math.min(100,shown/total*100):0)+'%';
+ $('playState').textContent=isPaused?(stepOnce?'1リンク進行中':'一時停止中'):
+        active?'ゆっくり再生中':cursor<observed.length?'再生準備中':total?'受信待ち（記録は保存中）':'pingの観測待ち';
+}
+function setStatus(obj){
+ const demo=obj.mode==='demo';$('modeTag').textContent=demo?'デモ（架空パケット）':'ライブ監視';
+ const ok=Boolean(obj.running);$('led').className='led '+(ok?'ok':'off');
+ $('status').textContent=demo?'デモ表示中':ok?'Mininetのパケットを監視中':'監視の開始を確認中';
+ $('capture').textContent=demo?'実通信には接続していません':(obj.interfaces||0)+' / '+(obj.expectedInterfaces||15)+' インターフェース';
+ if(obj.warning){$('warning').textContent=obj.warning;$('warning').classList.add('show')}
+}
+function activateRule(ev){
+ if(ev.fromNode!=='s1')return;
+ const n=Number(ev.dstIp.split('.').pop()),idx=ruleData.findIndex(x=>x[3]<=n&&n<=x[4]);
+ [...ruleBody.children].forEach((tr,i)=>tr.classList.toggle('current',i===idx));
+ const rule=ruleData[idx];
+ const observedPort=ev.iface.replace('s1-eth','port');
+ const same=rule && rule[1]===observedPort;
+ $('selected').innerHTML='';
+ const strong=document.createElement('b');strong.textContent=ev.srcHost+' → '+ev.dstHost+'（宛先 '+ev.dstIp+'）';
+ const desc=document.createElement('div');desc.textContent='実測: s1の'+observedPort+'から'+ev.toNode+'へ出力 ／ 教材上の一致: '+(rule?rule[0]+' → '+rule[1]:'該当なし')+(same?'（一致）':'（異なる）');
+ $('selected').append(strong,desc);
+}
+function selectedPair(ev){let x=$('filter').value;if(x==='all')return true;const [a,b]=x.split('-');return [a,b].includes(ev.srcHost)&&[a,b].includes(ev.dstHost)}
+function selectedEvent(ev){return selectedPair(ev)&&($('pathMode').value==='all'||(ev.routeRole!=='branch'&&!ev.repeatOnMainPath))}
+
+function exchangeKey(ev){
+ const ends=[ev.srcHost,ev.dstHost].sort().join('↔');
+ return String(ev.icmpId)+'|'+String(ev.seq)+'|'+ends;
+}
+function recordExchange(ev){
+ if(hostPorts[ev.fromNode]&&ev.srcMac&&/^([0-9a-f]{2}:){5}[0-9a-f]{2}$/i.test(ev.srcMac)) hostMacs.set(ev.fromNode,ev.srcMac.toLowerCase());
+ const key=exchangeKey(ev);
+ let row=exchangeMap.get(key);
+ if(!row){
+  row={key,seq:ev.seq,icmpId:ev.icmpId,first:Date.now(),
+       ends:[ev.srcHost,ev.dstHost].sort().join(' ↔ '),
+       requests:0,replies:0,replyAtSource:false,replyFromHost:false,branches:0,floodHosts:new Set(),seen:0};
+  exchangeMap.set(key,row);
+ }
+ row.seen++;
+ if(ev.kind==='request'){
+   row.requests++;
+   if(ev.routeRole==='branch')row.branches++;
+   // Only report h3/s1 as observed if the copy was actually captured.
+   if(ev.toNode==='h3'||ev.toNode==='s1'||ev.toNode==='s2'&&ev.fromNode==='s1')
+       row.floodHosts.add(ev.fromNode+'→'+ev.toNode);
+ }else{
+   row.replies++;
+   if(ev.fromNode===ev.srcHost)row.replyFromHost=true;
+   if(ev.toNode===ev.dstHost)row.replyAtSource=true;
+ }
+ renderExchanges();
+}
+function renderExchanges(){
+ const root=$('exchangeList');root.replaceChildren();
+ const last=[...exchangeMap.values()].slice(-8).reverse();
+ if(!last.length){const el=document.createElement('span');el.className='no-exchange';el.textContent='pingの観測待ち';root.append(el);return}
+ for(const item of last){
+   const line=document.createElement('div');line.className='exchange-line';
+   const top=document.createElement('div');top.className='exchange-top';
+   const name=document.createElement('b');name.textContent=item.ends+' · #'+item.seq;
+   const badges=document.createElement('span');badges.className='exchange-badges';
+   const req=document.createElement('span');req.className='exchange-tag observed';req.textContent='REQリンク '+item.requests;
+   const rep=document.createElement('span');rep.className='exchange-tag '+(item.replies?'observed':'missing');rep.textContent=item.replies?'REPリンク '+item.replies:'REP 未観測';
+   badges.append(req,rep);top.append(name,badges);
+   const descr=document.createElement('small');
+   const repStatus=item.replies?(item.replyAtSource?'返信が送信元側リンクまで到達':'返信は観測（送信元側到達は未確認）'):'応答パケットを検出できていません';
+   const flood=item.floodHosts.size?' ／ 分岐: '+[...item.floodHosts].join('、'):' ／ 分岐の観測なし';
+   descr.textContent=repStatus+flood;
+   line.append(top,descr);root.append(line);
+ }
+}
+function acceptBatch(packets){
+ const fresh=packets.filter(ev=>!Number.isFinite(Number(ev.ts))||Number(ev.ts)>=clearBeforeTs);
+ if(!fresh.length)return;
+ latestBatchStart=observed.length;
+ for(const ev of fresh)acceptEvent(ev);
+}
+
+function addLog(ev){
+ const root=$('log');if(logCount===0)root.replaceChildren();
+ const item=document.createElement('div');item.className='entry';
+ const when=document.createElement('time');when.textContent=new Date(ev.ts*1000).toLocaleTimeString('ja-JP',{hour12:false});
+ const dr=document.createElement('span');dr.className='direction '+(ev.direction==='out'?'out':'');dr.textContent=ev.direction==='out'?'送信 OUT':'受信 IN';
+ const body=document.createElement('div');const top=document.createElement('div');const bold=document.createElement('b');bold.textContent=ev.fromNode+' → '+ev.toNode;top.append(bold);
+ const details=document.createElement('div');details.className='detail';details.textContent=ev.srcHost+' → '+ev.dstHost+' · '+(ev.kind==='request'?'Echo Request':'Echo Reply')+' #'+ev.seq+' · '+ev.iface+' · '+(ev.pathDescription||'観測リンク');
+ body.append(top,details);item.append(when,dr,body);root.prepend(item);logCount++;
+ while(root.children.length>140)root.lastElementChild.remove();
+}
+function removeActive(){
+ if(rafId){cancelAnimationFrame(rafId);rafId=0}
+ if(active){active.layer.remove();active=null}
+ lastFrame=0;stepEndTime=0;
+}
+function makeParticle(ev){
+ const u=nodes[ev.fromNode],v=nodes[ev.toNode];
+ if(!u||!v)return null;
+ const isBranch=ev.routeRole==='branch';
+ const c=isBranch?'#acb4c7':ev.kind==='request'?'#39d6cb':'#ffbc6c';
+ const layer=element('g',{},particleGroup);
+ const trail=element('line',{x1:u.x,y1:u.y,x2:u.x,y2:u.y,stroke:c,'stroke-opacity':'0.7','stroke-width':isBranch?5:7,'stroke-linecap':'round',...(isBranch?{'stroke-dasharray':'9 7'}:{})},layer);
+ const dot=element('g',{class:'packet-icon'},layer);
+ element('rect',{x:-34,y:-15,width:68,height:30,rx:9,fill:c,class:'b'},dot);
+ element('rect',{x:-26,y:-8,width:14,height:15,rx:2,fill:'#e9ffff','fill-opacity':'0.95'},dot);
+ element('path',{d:'M -23 -5 L -16 -5 M -23 -1 L -16 -1 M -23 3 L -18 3',stroke:'#1b5361','stroke-width':'1.6'},dot);
+ text(9,4,(isBranch?'枝 ':ev.kind==='request'?'REQ ':'REP ')+ev.seq,'packet-label',dot);
+ const vx=v.x-u.x,vy=v.y-u.y,len=Math.hypot(vx,vy)||1;
+ const arrow=element('polygon',{points:'0,-7 14,0 0,7',fill:c,'fill-opacity':'0.92'},layer);
+ arrow.setAttribute('transform','translate('+(u.x+vx*.5)+','+(u.y+vy*.5)+') rotate('+(Math.atan2(vy,vx)*180/Math.PI)+')');
+ return {ev,u,v,layer,trail,dot,progress:0};
+}
+function positionParticle(p){
+ const x=p.u.x+(p.v.x-p.u.x)*p.progress,y=p.u.y+(p.v.y-p.u.y)*p.progress;
+ p.dot.setAttribute('transform','translate('+x+','+y+')');
+ p.trail.setAttribute('x2',String(x));p.trail.setAttribute('y2',String(y));
+}
+function updateReadout(ev){
+ const type=ev.kind==='request'?'Echo Request（要求）':'Echo Reply（応答）';
+ const originLabel=ev.kind==='request'?'要求の送信元':'返信の送信元';
+ const route=ev.routeRole==='branch'?' ／ 【主経路外】'+(ev.pathDescription||'分岐・コピー'):ev.repeatOnMainPath?' ／ 【重複観測】'+ev.pathDescription:' ／ 宛先へ向かう経路上';
+ const order=ev.orderBasis==='topology'?' ／ ※教材用の再生順':'';
+ $('readout').textContent=type+' #'+ev.seq+' ／ '+originLabel+'：'+ev.srcHost+' ／ '+ev.fromNode+' → '+ev.toNode+route+' ／ '+ev.iface+order+(ev.missingOrigin?' ／ ⚠ 送信元からの最初のリンクは観測できませんでした':'');
+}
+function finishStep(){
+ if(!active)return;
+ const ev=active.ev;
+ active.progress=1;positionParticle(active);
+ active.layer.remove();active=null;lastFrame=0;
+ addLog(ev);activateRule(ev);
+ counters.packet++;counters[ev.kind]++;
+ $('packets').textContent=counters.packet;$('requests').textContent=counters.request;$('replies').textContent=counters.reply;
+ if(stepOnce){stepOnce=false;isPaused=true}
+ updatePlaybackUI();
+}
+function tick(now){
+ rafId=0;
+ if(isPaused&&!stepOnce)return;
+ if(!active){
+  // フィルター外のイベントは描画せず、再生記録は保持する
+  while(cursor<observed.length&&!selectedEvent(observed[cursor]))cursor++;
+  if(cursor<observed.length){
+   active=makeParticle(observed[cursor++]);
+   if(active){positionParticle(active);updateReadout(active.ev);lastFrame=now;stepEndTime=0}
+  }
+  if(!active){updatePlaybackUI();return}
+ }
+ if(!lastFrame)lastFrame=now;
+ const dt=Math.min(100,Math.max(0,now-lastFrame));lastFrame=now;
+ active.progress=Math.min(1,active.progress+dt/segmentDuration());
+ positionParticle(active);
+ if(active.progress>=1){
+  if(!stepEndTime)stepEndTime=now;
+  if(stepOnce||now-stepEndTime>Math.min(450,330/currentSpeed()))finishStep();
+ }
+ updatePlaybackUI();
+ if((!isPaused||stepOnce)&&(active||cursor<observed.length))rafId=requestAnimationFrame(tick);
+}
+function scheduleTick(){if(!rafId)rafId=requestAnimationFrame(tick)}
+function acceptEvent(ev){
+ if(Number.isFinite(Number(ev.ts))&&Number(ev.ts)<clearBeforeTs)return;
+ if(!nodes[ev.fromNode]||!nodes[ev.toNode]||!['request','reply'].includes(ev.kind))return;
+ // 学習用に直近3000件まで記録する。上限に達したら古い再生済みのみ削除する。
+ observed.push(ev);recordExchange(ev);
+ if(lastFdb&&hostPorts[ev.fromNode])updateFdb(lastFdb);
+ if(observed.length>3000&&cursor>500){observed.splice(0,500);cursor-=500}
+ updatePlaybackUI();scheduleTick();
+}
+function resetView(message){
+ removeActive();cursor=0;stepOnce=false;logCount=0;
+ const el=document.createElement('div');el.className='empty';el.textContent=message;$('log').replaceChildren(el);
+ counters.packet=counters.request=counters.reply=0;
+ $('packets').textContent=$('requests').textContent=$('replies').textContent='0';
+ [...ruleBody.children].forEach(x=>x.classList.remove('current'));
+ $('readout').textContent='次のリンクに進むと、パケット型アイコンが通信方向に移動します。';
+ updatePlaybackUI();scheduleTick();
+}
+function updateFdb(tables){
+ lastFdb=tables;
+ const el=$('fdb');el.replaceChildren();
+ if(tables===null){const x=document.createElement('div');x.className='fdb-card';x.style.gridColumn='1 / -1';x.textContent='Linux bridge FDBの取得に対応していない環境です。ICMPパケットの経路は引き続き表示します。';el.append(x);return}
+ ['s2','s3','s4'].forEach(sw=>{
+  const card=document.createElement('div');card.className='fdb-card';const title=document.createElement('strong');title.textContent=sw+' · 学習済み '+(tables[sw]||[]).length+'件';card.append(title);
+  const items=tables[sw]||[];if(items.length){items.slice(0,7).forEach(it=>{const row=document.createElement('div');row.className='fdb-row';row.textContent=it.port+'  '+it.mac;card.append(row)})}else{const s=document.createElement('small');s.textContent='動的学習エントリなし';card.append(s)}
+  for(const [host,mac] of hostMacs){
+   const expected=hostPorts[host];if(!expected.startsWith(sw+'-'))continue;
+   const matches=items.filter(it=>it.mac.toLowerCase()===mac);
+   for(const ent of matches)if(ent.port!==expected){
+    const err=document.createElement('div');err.className='fdb-row';err.style.color='#ffc5a0';
+    err.textContent='⚠ '+host+' のMACが '+ent.port+' に学習（本来 '+expected+'）';card.append(err);
+   }
+  }
+  el.append(card);
+ });
+}
+const es=new EventSource('/events');
+es.onopen=()=>{if(!$('status').textContent.includes('監視中')&&!$('status').textContent.includes('デモ'))$('status').textContent='サーバーに接続中'};
+es.onmessage=e=>{let x;try{x=JSON.parse(e.data)}catch{return}
+ if(x.event==='status'){setStatus(x)}
+ else if(x.event==='worker_status'){fetch('/api/status').then(x=>x.json()).then(setStatus).catch(()=>{})}
+ else if(x.event==='packet'){acceptEvent(x)}
+ else if(x.event==='packet_batch'){acceptBatch(x.packets||[])}
+ else if(x.event==='fdb'){updateFdb(x.tables)}
+ else if(x.event==='warning'){$('warning').textContent=x.message;$('warning').classList.add('show')}
+};
+es.onerror=()=>{$('led').className='led off';$('status').textContent='監視サーバーとの接続が切れました'};
+fetch('/api/status').then(r=>r.json()).then(setStatus).catch(()=>{});
+$('playPause').addEventListener('click',()=>{
+ isPaused=!isPaused;stepOnce=false;
+ if(isPaused)lastFrame=0;
+ updatePlaybackUI();scheduleTick();
+});
+$('step').addEventListener('click',()=>{
+ // 再生中でも停止して1リンク分だけ進む。再開せず次のクリックを待つ。
+ isPaused=true;stepOnce=true;lastFrame=0;updatePlaybackUI();scheduleTick();
+});
+$('replay').addEventListener('click',()=>{
+ isPaused=false;resetView('観測済みのリンクを先頭からゆっくり再生します。');
+});
+$('latest').addEventListener('click',()=>{
+ removeActive();cursor=Math.min(latestBatchStart,observed.length);isPaused=false;stepOnce=false;
+ $('readout').textContent='直近のpingに移動しました。ここから要求と応答を再生します。';
+ updatePlaybackUI();scheduleTick();
+});
+$('speed').addEventListener('input',()=>{updatePlaybackUI()});
+$('diagnostics').addEventListener('click',()=>{
+ window.location.href='/api/diagnostics.json';
+});
+$('clear').addEventListener('click',()=>{
+ clearBeforeTs=Date.now()/1000;
+ observed.length=0;exchangeMap.clear();hostMacs.clear();latestBatchStart=0;renderExchanges();isPaused=false;resetView('記録を消去しました。新しいpingを待っています。');
+});
+$('filter').addEventListener('change',()=>{
+ isPaused=false;resetView('記録したイベントから、選択した通信だけを再生します。');
+});
+$('pathMode').addEventListener('change',()=>{
+ isPaused=false;resetView($('pathMode').value==='main'?'観測済みの「宛先へ向かうリンク」だけを再生します。':'実際に観測した主経路外のコピーも含めて再生します。');
+});
+renderExchanges();updatePlaybackUI();scheduleTick();
+</script>
+</body>
+</html>

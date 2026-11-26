@@ -112,12 +112,12 @@ Mininetの起動時にcustom_topo.pyを読み込み、ホストとスイッチ�
 
 ここで作られるのは「ホスト・スイッチ・接続」の構成です。
 
-Macのターミナルで、次のコマンドを実行してMininetを起動します。**以下はコマンドと起動時の出力を1つのターミナル表示にまとめた例**です。
+Macのターミナルで、`custom_topo.py`がある`proto04`ディレクトリに移動してから、次のコマンドを実行してMininetを起動します。**以下はコマンドと起動時の出力を1つのターミナル表示にまとめた例**です。
 
 ```console
 $ docker run --privileged --rm -it \
   -p 50001:50001 \
-  -v /tmp/P4Runtime-protoswitch/proto04:/tutorial4 \
+  -v "$(pwd)":/tutorial4 \
   -e LOGLEVEL=debug -e PKTDUMP=true -e IPV6=false \
   yutakayasuda/p4mn \
   --custom /tutorial4/custom_topo.py --topo mytopo --arp
@@ -139,7 +139,7 @@ s1 ... ⚡ simple_switch_grpc @ 50001
 mininet>
 ```
 
-`-v /tmp/P4Runtime-protoswitch/proto04:/tutorial4`は、Macの`proto04`ディレクトリをDocker内の`/tutorial4`から参照できるようにします。`--custom`は`proto04`内のcustom_topo.pyを読み込み、`--topo mytopo`は先ほど説明した接続構成を選びます。
+`-v "$(pwd)":/tutorial4`は、現在開いているMacの`proto04`ディレクトリをDocker内の`/tutorial4`から参照できるようにします。`--custom`は`proto04`内のcustom_topo.pyを読み込み、`--topo mytopo`は先ほど説明した接続構成を選びます。
 
 ファイル末尾の topos = {"mytopo": MyTopo} は、この構成を「mytopo」という名前で登録する指定です。起動コマンドの --custom でファイルを読み込み、--topo mytopo でその構成を選択します。
 
@@ -258,11 +258,11 @@ Macの別のターミナルを開き、次のコマンドでP4Runtime Shellを�
 
 ```console
 $ docker run --rm -ti \
-  -v /tmp/P4Runtime-protoswitch:/tmp \
+  -v "$(pwd)":/proto04 \
   p4lang/p4runtime-sh \
   --grpc-addr host.docker.internal:50001 \
   --device-id 1 --election-id 0,1 \
-  --config /tmp/proto04/p4info.txtpb,/tmp/proto04/proto04.json
+  --config /proto04/p4info.txtpb,/proto04/proto04.json
 *** Welcome to the IPython shell for P4Runtime ***
 P4Runtime sh >>>
 ```
